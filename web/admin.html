@@ -137,6 +137,7 @@ tr:hover td{background:var(--bg2)}
     <a class="logo" href="index.html"><span class="mark">R</span><span>Ryder<small>OPS CONSOLE</small></span></a>
     <div class="navs">
       <button class="nv on" data-v="overview" onclick="nav(this)">◳ &nbsp;Overview</button>
+      <button class="nv" data-v="analytics" onclick="nav(this)">📈 &nbsp;Analytics</button>
       <button class="nv" data-v="rides" onclick="nav(this)">⌖ &nbsp;Rides</button>
       <button class="nv" data-v="drivers" onclick="nav(this)">◔ &nbsp;Drivers <span class="cnt" id="kycCnt" style="display:none">0</span></button>
       <button class="nv" data-v="riders" onclick="nav(this)">◌ &nbsp;Riders</button>
@@ -178,6 +179,42 @@ tr:hover td{background:var(--bg2)}
           <h3 style="margin-top:24px">Latest rides</h3>
           <div id="miniRides" style="font-size:12.5px"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="viewx" id="x-analytics">
+      <div class="kpis">
+        <div class="kpi card"><div class="lbl">Completion rate</div><div class="val" id="anComp">—</div><div class="d up" id="anCompSub">request → drop</div></div>
+        <div class="kpi card"><div class="lbl">Avg rating</div><div class="val" id="anRate">—</div><div class="d" id="anRateSub">—</div></div>
+        <div class="kpi card"><div class="lbl">CO₂ saved (fleet)</div><div class="val" id="anCo2">—</div><div class="d up">vs average-car baseline</div></div>
+        <div class="kpi card"><div class="lbl">CO₂ emitted</div><div class="val" id="anCo2e">—</div><div class="d">green ledger, all trips</div></div>
+      </div>
+      <div class="grid2">
+        <div class="panel card">
+          <h3>Demand pulse <span class="micro">REQUESTS PER HOUR · 24H</span></h3>
+          <div id="chHourly" style="height:220px"></div>
+        </div>
+        <div class="panel card">
+          <h3>Conversion funnel</h3>
+          <div id="chFunnel"></div>
+          <h3 style="margin-top:22px">Category mix</h3>
+          <div id="chMix" style="display:flex;gap:20px;align-items:center"></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="panel card">
+          <h3>GMV · last 7 days</h3>
+          <div id="chDaily" style="height:200px"></div>
+        </div>
+        <div class="panel card">
+          <h3>Zone performance</h3>
+          <div id="chZones"></div>
+        </div>
+      </div>
+      <div class="panel card">
+        <h3>Driver leaderboard <span class="micro">LIFETIME EARNINGS</span></h3>
+        <div id="chLead"></div>
       </div>
     </div>
 
@@ -307,8 +344,9 @@ async function boot(){
   $('#meName').textContent=ME.name;
   $('#meAv').textContent=ME.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   API.connect(); wire();
-  loadOverview(); loadRides(); loadDrivers(); loadRiders(); loadZones(); loadRevenue(); loadSos(); loadTickets(); loadPositions();
+  loadOverview(); loadRides(); loadDrivers(); loadRiders(); loadZones(); loadRevenue(); loadSos(); loadTickets(); loadPositions(); loadAnalytics();
   setInterval(loadOverview, 8000);
+  setInterval(loadAnalytics, 15000);
 }
 
 function wire(){
@@ -323,6 +361,7 @@ function wire(){
 /* ---------- nav ---------- */
 const TITLES={
   overview:['Mission <span class="serif">control.</span>','The whole network, breathing in real time.'],
+  analytics:['The <span class="serif">pulse.</span>','Demand curves, funnels, green ledger and the leaderboard.'],
   rides:['Every <span class="serif">journey.</span>','City, rental, outstation & scheduled — live and historical.'],
   drivers:['The <span class="serif">fleet.</span>','KYC approvals, quality and partner management.'],
   riders:['The <span class="serif">riders.</span>','Accounts, wallets, Prime and standing.'],
@@ -386,6 +425,94 @@ function renderFleet(batch){
     el.style.left=c.x+'%'; el.style.top=c.y+'%';
     el.classList.toggle('busy',!!p.ride_id||!!p.current_ride_id);
   }
+}
+
+/* ---------- analytics ---------- */
+const CAT_COLORS={bike:'#0E9F5D',auto:'#D97706',mini:'#2563EB',prime:'#7C3AED',suv:'#DB2777',ev:'#0D9488'};
+function areaChart(el,data,key){
+  const W=560,H=200,P=28;
+  const max=Math.max(...data.map(d=>d[key]),1);
+  const x=i=>P+i*(W-2*P)/(data.length-1);
+  const y=v=>H-P-(v/max)*(H-2*P-14);
+  const pts=data.map((d,i)=>`${x(i)},${y(d[key])}`).join(' ');
+  const path=`M ${x(0)} ${y(data[0][key])} `+data.slice(1).map((d,i)=>`L ${x(i+1)} ${y(d[key])}`).join(' ');
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:100%">
+    <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4353FF" stop-opacity=".28"/><stop offset="1" stop-color="#4353FF" stop-opacity="0"/>
+    </linearGradient></defs>
+    ${[0.25,0.5,0.75].map(f=>`<line x1="${P}" x2="${W-P}" y1="${H-P-f*(H-2*P-14)}" y2="${H-P-f*(H-2*P-14)}" stroke="#E4E8EF" stroke-dasharray="3 5"/>`).join('')}
+    <path d="${path} L ${x(data.length-1)} ${H-P} L ${x(0)} ${H-P} Z" fill="url(#ag)"/>
+    <polyline points="${pts}" fill="none" stroke="#4353FF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    ${data.map((d,i)=>d[key]>0?`<circle cx="${x(i)}" cy="${y(d[key])}" r="3.5" fill="#fff" stroke="#4353FF" stroke-width="2.5"/>`:'').join('')}
+    ${data.map((d,i)=>i%4===0?`<text x="${x(i)}" y="${H-8}" font-size="10" font-weight="700" fill="#69737F" text-anchor="middle">${String(d.hour).padStart(2,'0')}h</text>`:'').join('')}
+  </svg>`;
+}
+function barChart(el,data){
+  const W=560,H=180,P=26,bw=(W-2*P)/data.length*0.55;
+  const max=Math.max(...data.map(d=>d.gmv),1);
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:100%">
+    ${data.map((d,i)=>{
+      const x=P+(i+0.5)*(W-2*P)/data.length, h=(d.gmv/max)*(H-2*P-16), today=i===data.length-1;
+      return `<rect x="${x-bw/2}" y="${H-P-h}" width="${bw}" height="${Math.max(h,3)}" rx="7"
+          fill="${today?'#4353FF':'#0E1116'}" opacity="${today?1:.85}"/>
+        <text x="${x}" y="${H-P-h-7}" font-size="10.5" font-weight="800" fill="${today?'#4353FF':'#69737F'}" text-anchor="middle">${d.gmv?('₹'+d.gmv.toLocaleString('en-IN')):''}</text>
+        <text x="${x}" y="${H-8}" font-size="10" font-weight="700" fill="#69737F" text-anchor="middle">${d.day}</text>`;
+    }).join('')}
+  </svg>`;
+}
+function donut(el,mix){
+  const total=mix.reduce((s,m)=>s+m.trips,0)||1;
+  let a=-Math.PI/2, arcs='';
+  for(const m of mix){
+    const frac=m.trips/total, a2=a+frac*2*Math.PI;
+    const large=frac>0.5?1:0;
+    const p=(ang)=>[60+46*Math.cos(ang),60+46*Math.sin(ang)];
+    const [x1,y1]=p(a),[x2,y2]=p(a2-0.03);
+    arcs+=`<path d="M ${x1} ${y1} A 46 46 0 ${large} 1 ${x2} ${y2}" fill="none" stroke="${CAT_COLORS[m.category]||'#69737F'}" stroke-width="14" stroke-linecap="round"/>`;
+    a=a2;
+  }
+  el.innerHTML=`<svg viewBox="0 0 120 120" style="width:130px;flex-shrink:0">${arcs}
+    <text x="60" y="57" font-size="20" font-weight="800" fill="#0E1116" text-anchor="middle">${total}</text>
+    <text x="60" y="73" font-size="8.5" font-weight="800" fill="#69737F" text-anchor="middle" letter-spacing="1">TRIPS</text></svg>
+    <div style="flex:1">${mix.map(m=>`
+      <div style="display:flex;align-items:center;gap:9px;padding:5px 0;font-size:12.5px;font-weight:700">
+        <i style="width:9px;height:9px;border-radius:3px;background:${CAT_COLORS[m.category]||'#69737F'}"></i>
+        <span style="text-transform:capitalize">${m.category}</span>
+        <span style="margin-left:auto;color:var(--mut)">${m.trips} · avg ${inr(m.avg_fare)}</span>
+      </div>`).join('')}</div>`;
+}
+async function loadAnalytics(){
+  const a=await API.get('/api/admin/analytics').catch(()=>null); if(!a) return;
+  $('#anComp').textContent=a.completion_rate+'%';
+  $('#anRate').textContent='★ '+a.avg_rating.toFixed(2);
+  $('#anRateSub').textContent=a.ratings_count+' ratings';
+  $('#anCo2').textContent=a.green.saved_kg+' kg';
+  $('#anCo2e').textContent=a.green.emitted_kg+' kg';
+  areaChart($('#chHourly'),a.hourly,'requests');
+  barChart($('#chDaily'),a.daily);
+  const fMax=Math.max(a.funnel.requested,1);
+  $('#chFunnel').innerHTML=Object.entries(a.funnel).map(([k,v],i)=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:6px 0">
+      <span style="width:82px;font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--mut);text-transform:uppercase">${k}</span>
+      <div style="flex:1;height:22px;border-radius:8px;background:var(--bg);overflow:hidden">
+        <div style="height:100%;width:${Math.max(v/fMax*100,4)}%;border-radius:8px;background:${['#0E1116','#4353FF','#7C3AED','#0E9F5D'][i]};transition:width .8s cubic-bezier(.2,.7,.3,1)"></div>
+      </div>
+      <b style="width:44px;text-align:right;font-size:13px">${v}</b>
+    </div>`).join('');
+  donut($('#chMix'),a.mix);
+  const zMax=Math.max(...a.zones.map(z=>z.trips),1);
+  $('#chZones').innerHTML=a.zones.map(z=>`
+    <div class="rv-row"><b style="width:110px">${esc(z.name)}</b>
+      <div class="rv-track"><i style="width:${Math.max(z.trips/zMax*100,3)}%"></i></div>
+      <span class="rv-amt">${z.trips} trip${z.trips===1?'':'s'}${z.surge>1?' · '+z.surge.toFixed(1)+'×':''}</span></div>`).join('');
+  $('#chLead').innerHTML=a.leaderboard.map((d,i)=>`
+    <div style="display:flex;align-items:center;gap:13px;padding:11px 4px;border-bottom:1px solid var(--hair)">
+      <span style="width:26px;font-size:${i<3?'17px':'12px'};font-weight:800;color:var(--mut)">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span>
+      <span class="av" style="width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;background:var(--emerald-dim);color:var(--emerald-deep)">${esc(d.name.split(' ').map(w=>w[0]).join('').slice(0,2))}</span>
+      <span style="font-weight:800;font-size:13.5px">${esc(d.name)}</span>
+      <span style="font-size:12px;color:var(--mut);font-weight:700">★ ${(d.rating||5).toFixed(2)} · ${d.category}</span>
+      <span style="margin-left:auto;font-weight:800;color:var(--emerald-deep)">${inr(d.earnings_total)}</span>
+    </div>`).join('');
 }
 
 /* ---------- rides ---------- */

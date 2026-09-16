@@ -101,6 +101,11 @@ function quoteFor(riderId, body) {
   const { surge } = surgeAt(body.pickup.lat, body.pickup.lng);
   const f = cityFare(body.category, distKm, durMin, { surge, night: isNight(), prime });
   if (!f) throw new Error('unknown category');
+  // Fare Lock honored: ride at the locked amount even if surge moved since
+  if (body._locked_fare && body._locked_fare < f.total) {
+    f.breakdown.fare_lock_saving = -(f.total - Math.round(body._locked_fare));
+    return { fare: Math.round(body._locked_fare), surge, distKm, durMin, breakdown: f.breakdown };
+  }
   return { fare: f.total, surge, distKm, durMin, breakdown: f.breakdown };
 }
 

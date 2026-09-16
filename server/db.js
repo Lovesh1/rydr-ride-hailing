@@ -191,6 +191,14 @@ CREATE TABLE IF NOT EXISTS recent_places (
   PRIMARY KEY (user_id, name)
 );
 
+CREATE TABLE IF NOT EXISTS fare_locks (
+  user_id TEXT PRIMARY KEY REFERENCES users(id),
+  category TEXT NOT NULL,
+  fare REAL NOT NULL,
+  pickup_name TEXT, drop_name TEXT,
+  expires_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS idempotency_keys (
   key TEXT PRIMARY KEY,               -- client-supplied Idempotency-Key header
   user_id TEXT NOT NULL,

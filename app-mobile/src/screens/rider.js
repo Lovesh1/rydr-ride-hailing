@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
 import { api, usePoll, setToken } from '../api';
 import { C, R, F, shadow, CATEGORY_META, inr, timeAgo, timeAt } from '../theme';
 import {
@@ -208,11 +209,23 @@ function FareScreen({ navigation, route }) {
   const [guestPhone, setGuestPhone] = useState('');
   const [corporate, setCorporate] = useState(false);
   const [expenseCode, setExpenseCode] = useState('');
+  const [lock, setLock] = useState(null);
 
   useEffect(() => { (async () => {
-    try { setEst(await api.post('/api/fares/estimate', { pickup: HSR, drop, stops })); }
-    catch (e) { toast(e.message, true); }
+    try {
+      setEst(await api.post('/api/fares/estimate', { pickup: HSR, drop, stops }));
+      setLock(await api.get('/api/fares/lock').catch(() => null));
+    } catch (e) { toast(e.message, true); }
   })(); }, [stops]);
+
+  const lockFare = async () => {
+    try {
+      const r = await api.post('/api/fares/lock', {
+        category: sel.category, fare: sel.fare, pickup_name: HSR.name, drop_name: drop.name });
+      setLock(r);
+      toast(`Fare locked at ${inr(sel.fare)} for 30 min — surge can't touch you 🔒`);
+    } catch (e) { toast(e.message, true); }
+  };
 
   const openStopPicker = async () => {
     setStopChoices((await api.get('/api/places?q=')).filter(p => p.name !== drop.name).slice(0, 6));
@@ -309,6 +322,27 @@ function FareScreen({ navigation, route }) {
               View fare breakdown ↓
             </Text>
           </TouchableOpacity>
+        )}
+        {/* Fare Lock — freeze this price against surge for 30 min */}
+        {mode !== 'schedule' && sel && (
+          lock && lock.expires_at > Date.now() ? (
+            <View style={[S.row, { backgroundColor: C.ink, borderRadius: 16, padding: 14, gap: 12, marginTop: 4 }]}>
+              <Text style={{ fontSize: 16 }}>🔒</Text>
+              <Text style={{ fontFamily: F.uiBold, fontSize: 12.5, color: C.white, flex: 1 }}>
+                {lock.category} locked at {inr(lock.fare)} · {Math.max(1, Math.round((lock.expires_at - Date.now()) / 60000))} min left
+              </Text>
+              <Pill text="SURGE-PROOF" tone="em" />
+            </View>
+          ) : (
+            <TouchableOpacity onPress={lockFare}
+              style={[S.row, { borderRadius: 16, padding: 14, gap: 12, marginTop: 4, backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.hairDark, borderStyle: 'dashed' }]}>
+              <Text style={{ fontSize: 16 }}>🔒</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[S.h3, { fontSize: 13 }]}>Lock this fare · ₹5</Text>
+                <Text style={[S.mut, { fontSize: 11.5 }]}>price frozen 30 min — even if surge spikes</Text>
+              </View>
+            </TouchableOpacity>
+          )
         )}
       </View>
 
@@ -869,6 +903,18 @@ function RateScreen({ navigation, route }) {
       <Text style={{ fontFamily: F.uiBold, fontSize: 12.5, color: C.emerald, marginTop: 4 }}>
         {ride.payment_method === 'wallet' ? 'Paid from wallet ✓' : 'Paid in cash'}
       </Text>
+      {(() => {
+        // green ledger: same factors as the server's CO₂ model
+        const f = { bike: 0.045, auto: 0.062, mini: 0.125, prime: 0.155, suv: 0.185, ev: 0.015 }[ride.category] ?? 0.145;
+        const saved = Math.max(0, (0.145 - f) * (ride.distance_km || 0));
+        const coins = 5 + Math.floor((ride.fare_final || 0) / 20);
+        return (
+          <View style={[S.row, { gap: 8, marginTop: 14 }]}>
+            {saved > 0.05 && <Pill text={`🌱 ${saved.toFixed(1)} kg CO₂ saved`} tone="em" />}
+            <Pill text={`🪙 +${coins} coins`} tone="gold" />
+          </View>
+        );
+      })()}
 
       <Text style={[S.body, { marginTop: 28 }]}>How was your ride with {ride.driver_name}?</Text>
       <View style={[S.row, { gap: 8, marginTop: 12 }]}>
@@ -902,6 +948,99 @@ function RateScreen({ navigation, route }) {
       <Btn title="Submit rating" onPress={submit} style={{ marginTop: 18, alignSelf: 'stretch' }} />
       <Btn title="Add ₹20 tip" kind="soft" onPress={() => tip(20)} style={{ marginTop: 10, alignSelf: 'stretch' }} />
       <Btn title="Skip" kind="ghost" onPress={() => navigation.popToTop()} style={{ marginTop: 10, alignSelf: 'stretch' }} />
+    </ScrollView>
+  );
+}
+
+/* =====================================================================
+   RYDER WRAPPED — your ride story (analytics for the rider)
+===================================================================== */
+function WrappedScreen({ navigation }) {
+  const [w, setW] = useState(null);
+  useEffect(() => { (async () => {
+    try { setW(await api.get('/api/me/wrapped')); } catch (e) { toast(e.message, true); }
+  })(); }, []);
+
+  const share = async () => {
+    try {
+      await Share.share({ message:
+        `My Ryder Wrapped ✨ ${w.rides} rides · ${w.km} km · ${w.streak_days}-day streak · ${w.co2_saved_kg} kg CO₂ saved 🌱 · ${w.coins} coins` });
+    } catch { toast('Wrapped copied'); }
+  };
+
+  const Tile = ({ flex = 1, bg, fg = C.white, label, value, sub }) => (
+    <View style={{ flex, backgroundColor: bg, borderRadius: 22, padding: 18, minHeight: 108, justifyContent: 'flex-end' }}>
+      <Text style={{ fontFamily: F.uiHeavy, fontSize: 30, color: fg, letterSpacing: -1 }}>{value}</Text>
+      <Text style={{ fontFamily: F.uiBold, fontSize: 12, color: fg, opacity: 0.75, marginTop: 2 }}>{label}</Text>
+      {sub ? <Text style={{ fontFamily: F.uiSemi, fontSize: 10.5, color: fg, opacity: 0.55, marginTop: 1 }}>{sub}</Text> : null}
+    </View>
+  );
+
+  if (!w) return <View style={[S.screen, { backgroundColor: C.ink }]} />;
+
+  const badges = [
+    w.streak_days >= 2 && `🔥 ${w.streak_days}-day streak`,
+    w.night_owl && '🦉 Night owl',
+    w.prime && '✦ Prime member',
+    w.co2_saved_kg > 0.5 && '🌱 Planet friendly',
+    w.rides >= 5 && '🏅 Regular',
+    w.tips_given > 0 && '💚 Generous tipper',
+  ].filter(Boolean);
+
+  return (
+    <ScrollView style={[S.screen, { backgroundColor: C.ink }]} contentContainerStyle={{ padding: 22, paddingBottom: 40 }}>
+      <View style={[S.row, { justifyContent: 'space-between', paddingTop: 8 }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={{ fontFamily: F.uiHeavy, fontSize: 15, color: '#8B93A3' }}>← Back</Text>
+        </TouchableOpacity>
+        <Pill text="2026" tone="vi" />
+      </View>
+
+      <Text style={{ fontFamily: F.uiHeavy, fontSize: 13, color: C.emerald, letterSpacing: 2.5, marginTop: 26 }}>YOUR RYDER WRAPPED</Text>
+      <Text style={{ fontFamily: F.uiHeavy, fontSize: 40, color: C.white, letterSpacing: -1.4, lineHeight: 44, marginTop: 8 }}>
+        {w.name.split(' ')[0]}, what{'\n'}a ride<Text style={{ color: C.emerald }}>.</Text>
+      </Text>
+
+      {/* bento story */}
+      <View style={[S.row, { gap: 10, marginTop: 24 }]}>
+        <Tile flex={1.3} bg={C.emerald} value={w.rides} label="rides taken" sub={`${w.active_days} active days`} />
+        <Tile bg="#1C2130" value={`${w.km} km`} label="across the city" />
+      </View>
+      <View style={[S.row, { gap: 10, marginTop: 10 }]}>
+        <Tile bg="#1C2130" value={inr(w.spend)} label="total spend" sub={w.promo_saved ? `saved ${inr(w.promo_saved)} in promos` : null} />
+        <Tile flex={1.3} bg={C.gold} value={`${w.streak_days} 🔥`} label="day streak" sub="keep it alive" />
+      </View>
+      <View style={[S.row, { gap: 10, marginTop: 10 }]}>
+        <Tile flex={1.3} bg="#153B2E" fg="#7BE3B0" value={`${w.co2_saved_kg} kg`} label="CO₂ saved vs car" sub={`${w.co2_emitted_kg} kg footprint`} />
+        <Tile bg="#2A2440" fg="#C9BAFF" value={w.coins} label="Ryder coins 🪙" />
+      </View>
+
+      {w.top_place && (
+        <View style={{ backgroundColor: '#1C2130', borderRadius: 22, padding: 20, marginTop: 10 }}>
+          <Text style={{ fontFamily: F.uiBold, fontSize: 11, color: '#8B93A3', letterSpacing: 1.5 }}>YOUR PLACE</Text>
+          <Text style={{ fontFamily: F.uiHeavy, fontSize: 19, color: C.white, marginTop: 6 }}>📍 {w.top_place}</Text>
+          <Text style={{ fontFamily: F.uiSemi, fontSize: 12, color: '#8B93A3', marginTop: 3 }}>
+            you kept coming back · mostly by {w.top_category || 'auto'}
+          </Text>
+        </View>
+      )}
+
+      {badges.length > 0 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 16 }}>
+          {badges.map(b => (
+            <View key={b} style={{ backgroundColor: '#FFFFFF14', borderRadius: 999, paddingVertical: 9, paddingHorizontal: 15 }}>
+              <Text style={{ fontFamily: F.uiBold, fontSize: 12.5, color: C.white }}>{b}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <Btn title="Share my Wrapped ✨" onPress={share} style={{ marginTop: 26 }} />
+      {w.rides === 0 && (
+        <Text style={{ fontFamily: F.uiSemi, fontSize: 12.5, color: '#8B93A3', textAlign: 'center', marginTop: 14 }}>
+          Take your first ride and this page comes alive.
+        </Text>
+      )}
     </ScrollView>
   );
 }
@@ -1103,6 +1242,7 @@ const PREF_LABELS = {
 };
 
 function ProfileScreen({ onSignOut }) {
+  const navigation = useNavigation();
   const [me, setMe] = useState(null);
   const [ref, setRef] = useState(null);
   const [saved, setSaved] = useState([]);
@@ -1167,7 +1307,18 @@ function ProfileScreen({ onSignOut }) {
         <Text style={[S.mut, { marginTop: 4 }]}>★ {(me?.rating || 5).toFixed(2)} · {me?.rides_count || 0} rides · {me?.phone}</Text>
       </View>
 
-      <View style={[S.card, { padding: 18, marginTop: 22, backgroundColor: C.violetSoft, borderColor: '#DCD6F2' }]}>
+      <TouchableOpacity activeOpacity={0.92} onPress={() => navigation.navigate('RideTab', { screen: 'Wrapped' })}
+        style={[{ padding: 20, marginTop: 22, borderRadius: 22, backgroundColor: C.ink, overflow: 'hidden' }, shadow.float]}>
+        <View style={{ position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: '#4353FF33', top: -60, right: -40 }} />
+        <View style={{ position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: '#FF7A1A2E', bottom: -40, left: -20 }} />
+        <Text style={{ fontFamily: F.uiHeavy, fontSize: 12, color: C.emerald, letterSpacing: 2 }}>NEW ✨</Text>
+        <Text style={{ fontFamily: F.uiHeavy, fontSize: 20, color: C.white, marginTop: 6 }}>Your Ryder Wrapped</Text>
+        <Text style={{ fontFamily: F.uiSemi, fontSize: 12.5, color: '#9AA2B1', marginTop: 3 }}>
+          Your rides, streaks, coins & CO₂ — as a story →
+        </Text>
+      </TouchableOpacity>
+
+      <View style={[S.card, { padding: 18, marginTop: 12, backgroundColor: C.violetSoft, borderColor: '#DCD6F2' }]}>
         <View style={[S.row, { justifyContent: 'space-between' }]}>
           <View>
             <Text style={[S.h3, { color: C.violet }]}>Refer & earn ₹100</Text>
@@ -1259,6 +1410,7 @@ function RideFlow() {
       <Stack.Screen name="Rentals" component={RentalsScreen} options={{ title: 'Rentals' }} />
       <Stack.Screen name="Outstation" component={OutstationScreen} options={{ title: 'Outstation' }} />
       <Stack.Screen name="Parcel" component={ParcelScreen} options={{ title: 'Send a parcel' }} />
+      <Stack.Screen name="Wrapped" component={WrappedScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Ride" component={RideScreen} options={{ title: 'Your ride', headerBackVisible: false }} />
       <Stack.Screen name="Rate" component={RateScreen} options={{ headerShown: false }} />
     </Stack.Navigator>

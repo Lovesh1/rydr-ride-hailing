@@ -1,7 +1,7 @@
 // server/routes.js — full REST API: auth, rider, driver, admin
 import { db, PLACES, refCode } from './db.js';
 import { uid, now, otp6, ok, bad, readBody, authUser, signToken, haversineKm } from './lib.js';
-import { estimateCity, estimateRentals, estimateOutstation, estimateParcel, RATE_CARD } from './pricing.js';
+import { estimateCity, estimateRentals, estimateOutstation, estimateParcel, RATE_CARD, co2ForRide } from './pricing.js';
 import {
   createRide, rideView, cancelRide, rateRide, ledger,
   acceptRide, declineRide, markArrived, startRide, completeRide, pendingOfferFor,
@@ -185,6 +185,62 @@ export async function route(req, res, url) {
     return ok(res, estimateParcel([pickup, drop], me.id));
   }
 
+  /* ---------- Fare Lock: freeze a quote for 30 min for ₹5 ---------- */
+  if (p === '/api/fares/lock' && m === 'GET') {
+    const l = db.prepare('SELECT * FROM fare_locks WHERE user_id = ? AND expires_at > ?').get(me.id, now());
+    return ok(res, l || null);
+  }
+  if (p === '/api/fares/lock' && m === 'POST') {
+    const { category, fare, pickup_name, drop_name } = await readBody(req);
+    if (!RATE_CARD[category] || !(fare > 0)) return bad(res, 'category and fare required');
+    if (me.wallet_balance < 5) return bad(res, 'needs ₹5 in wallet to lock a fare');
+    ledger(me.id, 'ride_charge', -5, `fare lock · ${RATE_CARD[category].label} @ ₹${Math.round(fare)}`);
+    const expires = now() + 30 * 60 * 1000;
+    db.prepare(`INSERT INTO fare_locks (user_id,category,fare,pickup_name,drop_name,expires_at) VALUES (?,?,?,?,?,?)
+      ON CONFLICT(user_id) DO UPDATE SET category=?, fare=?, pickup_name=?, drop_name=?, expires_at=?`)
+      .run(me.id, category, fare, pickup_name || null, drop_name || null, expires,
+        category, fare, pickup_name || null, drop_name || null, expires);
+    inc('ryder_business_events_total', { event: 'fare_locked' });
+    return ok(res, { locked: true, category, fare, expires_at: expires });
+  }
+
+  /* ---------- Ryder Wrapped: personal ride story ---------- */
+  if (p === '/api/me/wrapped' && m === 'GET') {
+    const rides = db.prepare(`SELECT * FROM rides WHERE rider_id = ? AND status = 'COMPLETED' ORDER BY completed_at`).all(me.id);
+    let km = 0, spend = 0, promoSaved = 0, night = 0, co2e = 0, co2s = 0;
+    const byCat = {}, byDrop = {};
+    const days = new Set();
+    for (const r of rides) {
+      km += r.distance_km || 0; spend += r.fare_final || 0; promoSaved += r.promo_discount || 0;
+      const h = new Date(r.completed_at).getHours();
+      if (h >= 22 || h < 5) night++;
+      byCat[r.category] = (byCat[r.category] || 0) + 1;
+      byDrop[r.drop_addr] = (byDrop[r.drop_addr] || 0) + 1;
+      const c = co2ForRide(r.category, r.distance_km);
+      co2e += c.emitted_kg; co2s += c.saved_kg;
+      days.add(new Date(r.completed_at).toDateString());
+    }
+    // streak: consecutive days ending today/yesterday with at least one ride
+    let streak = 0;
+    for (let d = 0; d < 365; d++) {
+      const day = new Date(Date.now() - d * 864e5).toDateString();
+      if (days.has(day)) streak++;
+      else if (d > 0) break;
+    }
+    const top = (o) => Object.entries(o).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    const coins = rides.reduce((s, r) => s + 5 + Math.floor((r.fare_final || 0) / 20), 0);
+    const tips = db.prepare(`SELECT COALESCE(SUM(-amount),0) t FROM wallet_ledger WHERE user_id = ? AND type='tip' AND amount < 0`).get(me.id).t;
+    return ok(res, {
+      name: me.name, rides: rides.length, km: Math.round(km), spend: Math.round(spend),
+      promo_saved: Math.round(promoSaved), tips_given: Math.round(tips),
+      night_rides: night, night_owl: night >= 3,
+      top_category: top(byCat), top_place: top(byDrop),
+      co2_emitted_kg: Math.round(co2e * 10) / 10, co2_saved_kg: Math.round(co2s * 10) / 10,
+      coins, streak_days: streak, active_days: days.size,
+      member_since: me.created_at, rating: me.rating, prime: (me.prime_until || 0) > now(),
+    });
+  }
+
   /* ================= RIDER ================= */
   if (p === '/api/rides' && m === 'POST') {
     if (me.role !== 'rider') return bad(res, 'riders only', 403);
@@ -197,6 +253,12 @@ export async function route(req, res, url) {
       const active = db.prepare("SELECT id FROM rides WHERE rider_id = ? AND status IN ('SEARCHING','ACCEPTED','ARRIVED','ONGOING')").get(me.id);
       if (active) return bad(res, 'you already have an active ride');
       try {
+        // Fare Lock: a live lock on this category pins the quoted fare
+        const lock = db.prepare('SELECT * FROM fare_locks WHERE user_id = ? AND expires_at > ?').get(me.id, now());
+        if (lock && (body.type || 'city') === 'city' && lock.category === body.category) {
+          body._locked_fare = lock.fare;
+          db.prepare('DELETE FROM fare_locks WHERE user_id = ?').run(me.id);
+        }
         const r = createRide(me.id, body);
         // Postpaid: the wallet may go negative up to the credit line
         const spendable = me.wallet_balance + (me.postpaid_limit || 0);
@@ -591,6 +653,58 @@ export async function route(req, res, url) {
       audit(me.id, 'set_surge', seg[3], `→ ${s}x`);
       emitAdmins('zone', db.prepare('SELECT * FROM zones WHERE id = ?').get(seg[3]));
       return ok(res, { surge: s });
+    }
+
+    if (p === '/api/admin/analytics' && m === 'GET') {
+      const t = now();
+      // hourly demand curve — requests per hour, last 24h
+      const hourly = Array.from({ length: 24 }, (_, i) => {
+        const from = t - (24 - i) * 3600e3, to = t - (23 - i) * 3600e3;
+        return {
+          hour: new Date(from).getHours(),
+          requests: db.prepare('SELECT COUNT(*) c FROM rides WHERE requested_at >= ? AND requested_at < ?').get(from, to).c,
+          completed: db.prepare("SELECT COUNT(*) c FROM rides WHERE status='COMPLETED' AND completed_at >= ? AND completed_at < ?").get(from, to).c,
+        };
+      });
+      // daily GMV, last 7 days
+      const daily = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (6 - i));
+        const from = d.getTime(), to = from + 864e5;
+        const row = db.prepare("SELECT COUNT(*) c, COALESCE(SUM(fare_final),0) g FROM rides WHERE status='COMPLETED' AND completed_at >= ? AND completed_at < ?").get(from, to);
+        return { day: d.toLocaleDateString('en-IN', { weekday: 'short' }), trips: row.c, gmv: Math.round(row.g) };
+      });
+      // funnel
+      const f = (sql) => db.prepare(sql).get().c;
+      const funnel = {
+        requested: f('SELECT COUNT(*) c FROM rides'),
+        matched: f('SELECT COUNT(*) c FROM rides WHERE driver_id IS NOT NULL'),
+        started: f('SELECT COUNT(*) c FROM rides WHERE started_at IS NOT NULL'),
+        completed: f("SELECT COUNT(*) c FROM rides WHERE status='COMPLETED'"),
+      };
+      // category mix + avg fare
+      const mix = db.prepare(`SELECT category, COUNT(*) trips, COALESCE(SUM(fare_final),0) gross,
+        COALESCE(AVG(fare_final),0) avg_fare FROM rides WHERE status='COMPLETED' GROUP BY category ORDER BY trips DESC`).all();
+      // zone performance — completed pickups inside each zone
+      const zones = db.prepare('SELECT * FROM zones').all().map(z => ({
+        name: z.name, surge: z.surge,
+        trips: db.prepare(`SELECT COUNT(*) c FROM rides r WHERE r.status='COMPLETED'
+          AND ((r.pickup_lat - ?) * (r.pickup_lat - ?) + (r.pickup_lng - ?) * (r.pickup_lng - ?)) <= ?`)
+          .get(z.lat, z.lat, z.lng, z.lng, (z.radius_km / 111) ** 2).c,
+      })).sort((a, b) => b.trips - a.trips);
+      // driver leaderboard
+      const leaderboard = db.prepare(`SELECT u.name, u.rating, d.category, d.earnings_total,
+        (SELECT COUNT(*) FROM rides r WHERE r.driver_id = u.id AND r.status='COMPLETED') trips
+        FROM drivers d JOIN users u ON u.id = d.user_id ORDER BY d.earnings_total DESC LIMIT 6`).all();
+      // green ledger fleet-wide
+      const green = db.prepare(`SELECT category, COALESCE(SUM(distance_km),0) km FROM rides WHERE status='COMPLETED' GROUP BY category`).all()
+        .reduce((acc, r) => { const c = co2ForRide(r.category, r.km); acc.emitted += c.emitted_kg; acc.saved += c.saved_kg; return acc; }, { emitted: 0, saved: 0 });
+      const ratings = db.prepare('SELECT COALESCE(AVG(stars),5) a, COUNT(*) n FROM ratings').get();
+      return ok(res, {
+        hourly, daily, funnel, mix, zones, leaderboard,
+        green: { emitted_kg: Math.round(green.emitted * 10) / 10, saved_kg: Math.round(green.saved * 10) / 10 },
+        avg_rating: Math.round(ratings.a * 100) / 100, ratings_count: ratings.n,
+        completion_rate: funnel.requested ? Math.round(funnel.completed / funnel.requested * 100) : 0,
+      });
     }
 
     if (p === '/api/admin/revenue' && m === 'GET') {

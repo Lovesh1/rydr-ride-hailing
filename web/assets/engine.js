@@ -55,6 +55,12 @@
     large: { label: 'Large · up to 12 kg', base: 55, baseKm: 1.5, perKm: 12, minFare: 80 },
   };
   const GST = 0.05, NIGHT = 1.25, PRIME_OFF = 0.10, ROUTE_F = 1.35, SPEED = 22, TAKE = 0.22;
+  const CO2_PER_KM = { bike: 0.045, auto: 0.062, mini: 0.125, prime: 0.155, suv: 0.185, ev: 0.015 };
+  const CAR_BASELINE = 0.145;
+  function co2ForRide(category, distKm) {
+    const f = CO2_PER_KM[category] ?? CAR_BASELINE;
+    return { emitted_kg: round2(f * (distKm || 0)), saved_kg: round2(Math.max(0, (CAR_BASELINE - f) * (distKm || 0))) };
+  }
 
   const PLACES = [
     { name: 'HSR Layout, Sector 2', lat: 12.9116, lng: 77.6474 },
@@ -122,7 +128,7 @@
         { id: 'z5', name: 'CBD / MG Road', lat: 12.9756, lng: 77.6068, r: 2.5, surge: 1 },
         { id: 'z6', name: 'Electronic City', lat: 12.8452, lng: 77.6602, r: 3.0, surge: 1 },
       ],
-      saved: [], contacts: [], tickets: [], sos: [], favs: [], recents: [],
+      saved: [], contacts: [], tickets: [], sos: [], favs: [], recents: [], fareLocks: {},
       promos: { FIRST50: { type: 'percent', value: 50, max: 75, cap: 3 }, RYDER20: { type: 'flat', value: 20, max: 20, cap: 5 } },
       offers: {}, // rideId -> {driverId, expiresAt}
     };
@@ -131,6 +137,7 @@
   function load() {
     try { S = JSON.parse(localStorage.getItem(KEY)); } catch {}
     if (!S || !S.users) S = fresh();
+    if (!S.fareLocks) S.fareLocks = {};
     // runtime-only fields
     S.offers = {};
     for (const u of S.users) if (u.driver?.is_bot) u.driver.current_ride_id = null;
@@ -284,6 +291,10 @@
     const { surge } = surgeAt(body.pickup.lat, body.pickup.lng);
     const f = cityFare(body.category, distKm, durMin, { surge, night: isNight(), prime: isPrime(user) });
     if (!f) throw new Error('unknown category');
+    if (body._locked_fare && body._locked_fare < f.total) {
+      f.breakdown.fare_lock_saving = -(f.total - Math.round(body._locked_fare));
+      return { fare: Math.round(body._locked_fare), surge, distKm, durMin, breakdown: f.breakdown };
+    }
     return { fare: f.total, surge, distKm, durMin, breakdown: f.breakdown };
   }
   function createRide(user, body) {
@@ -516,7 +527,14 @@
     if (p === '/api/fares/parcel') return ok(estimateParcel([body.pickup, body.drop], me));
 
     if (p === '/api/rides' && method === 'POST') {
-      try { return ok(rideView(createRide(me, body))); } catch (e) { return bad(e.message); }
+      try {
+        const lock = S.fareLocks[me.id];
+        if (lock && lock.expires_at > now() && (body.type || 'city') === 'city' && lock.category === body.category) {
+          body._locked_fare = lock.fare;
+          delete S.fareLocks[me.id];
+        }
+        return ok(rideView(createRide(me, body)));
+      } catch (e) { return bad(e.message); }
     }
     if (p === '/api/rides/active') {
       const r = S.rides.find(x => x.rider_id === me.id && ['SEARCHING', 'ACCEPTED', 'ARRIVED', 'ONGOING'].includes(x.status));
@@ -575,6 +593,57 @@
       me.postpaid_limit = 500; save();
       return ok({ postpaid_limit: 500 });
     }
+    /* Fare Lock */
+    if (p === '/api/fares/lock' && method === 'GET') {
+      const l = S.fareLocks[me.id];
+      return ok(l && l.expires_at > now() ? l : null);
+    }
+    if (p === '/api/fares/lock' && method === 'POST') {
+      if (!RATE_CARD[body.category] || !(body.fare > 0)) return bad('category and fare required');
+      if (me.wallet_balance < 5) return bad('needs ₹5 in wallet to lock a fare');
+      ledger(me.id, 'ride_charge', -5, `fare lock · ${RATE_CARD[body.category].label} @ ₹${Math.round(body.fare)}`);
+      S.fareLocks[me.id] = { user_id: me.id, category: body.category, fare: body.fare,
+        pickup_name: body.pickup_name || null, drop_name: body.drop_name || null, expires_at: now() + 30 * 60000 };
+      save();
+      return ok({ locked: true, ...S.fareLocks[me.id] });
+    }
+
+    /* Ryder Wrapped */
+    if (p === '/api/me/wrapped') {
+      const rides = S.rides.filter(r => r.rider_id === me.id && r.status === 'COMPLETED');
+      let km = 0, spend = 0, promoSaved = 0, night = 0, co2e = 0, co2s = 0;
+      const byCat = {}, byDrop = {}, days = new Set();
+      for (const r of rides) {
+        km += r.distance_km || 0; spend += r.fare_final || 0; promoSaved += r.promo_discount || 0;
+        const h = new Date(r.completed_at).getHours();
+        if (h >= 22 || h < 5) night++;
+        byCat[r.category] = (byCat[r.category] || 0) + 1;
+        byDrop[r.drop_addr] = (byDrop[r.drop_addr] || 0) + 1;
+        const c = co2ForRide(r.category, r.distance_km);
+        co2e += c.emitted_kg; co2s += c.saved_kg;
+        days.add(new Date(r.completed_at).toDateString());
+      }
+      let streak = 0;
+      for (let d = 0; d < 365; d++) {
+        const day = new Date(Date.now() - d * 864e5).toDateString();
+        if (days.has(day)) streak++;
+        else if (d > 0) break;
+      }
+      const top = (o) => Object.entries(o).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      const tips = S.ledger.filter(t => t.user_id === me.id && t.type === 'tip' && t.amount < 0)
+        .reduce((s, t) => s - t.amount, 0);
+      return ok({
+        name: me.name, rides: rides.length, km: Math.round(km), spend: Math.round(spend),
+        promo_saved: Math.round(promoSaved), tips_given: Math.round(tips),
+        night_rides: night, night_owl: night >= 3,
+        top_category: top(byCat), top_place: top(byDrop),
+        co2_emitted_kg: Math.round(co2e * 10) / 10, co2_saved_kg: Math.round(co2s * 10) / 10,
+        coins: rides.reduce((s, r) => s + 5 + Math.floor((r.fare_final || 0) / 20), 0),
+        streak_days: streak, active_days: days.size,
+        member_since: me.created_at, rating: me.rating, prime: isPrime(me),
+      });
+    }
+
     if (p === '/api/preferences' && method === 'GET') return ok(me.ride_prefs || {});
     if (p === '/api/preferences' && method === 'POST') {
       const allowed = ['quiet', 'ac', 'luggage_help', 'prefer_woman_driver', 'auto_share'];
@@ -742,6 +811,56 @@
         const z = S.zones.find(x => x.id === seg[3]);
         if (z) { z.surge = Math.min(Math.max(Number(body.surge) || 1, 1), 3); save(); emit('zone', z); }
         return ok({ surge: z?.surge });
+      }
+      if (p === '/api/admin/analytics') {
+        const t = now();
+        const done = S.rides.filter(r => r.status === 'COMPLETED');
+        const hourly = Array.from({ length: 24 }, (_, i) => {
+          const from = t - (24 - i) * 3600e3, to = t - (23 - i) * 3600e3;
+          return {
+            hour: new Date(from).getHours(),
+            requests: S.rides.filter(r => r.requested_at >= from && r.requested_at < to).length,
+            completed: done.filter(r => r.completed_at >= from && r.completed_at < to).length,
+          };
+        });
+        const daily = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (6 - i));
+          const from = d.getTime(), to = from + 864e5;
+          const rows = done.filter(r => r.completed_at >= from && r.completed_at < to);
+          return { day: d.toLocaleDateString('en-IN', { weekday: 'short' }), trips: rows.length,
+            gmv: Math.round(rows.reduce((s, r) => s + r.fare_final, 0)) };
+        });
+        const funnel = {
+          requested: S.rides.length,
+          matched: S.rides.filter(r => r.driver_id).length,
+          started: S.rides.filter(r => r.started_at).length,
+          completed: done.length,
+        };
+        const mixMap = {};
+        for (const r of done) {
+          (mixMap[r.category] ||= { category: r.category, trips: 0, gross: 0 });
+          mixMap[r.category].trips++; mixMap[r.category].gross += r.fare_final;
+        }
+        const mix = Object.values(mixMap).map(m => ({ ...m, avg_fare: m.gross / m.trips })).sort((a, b) => b.trips - a.trips);
+        const zones = S.zones.map(z => ({
+          name: z.name, surge: z.surge,
+          trips: done.filter(r => havKm(r.pickup_lat, r.pickup_lng, z.lat, z.lng) <= z.r).length,
+        })).sort((a, b) => b.trips - a.trips);
+        const leaderboard = S.users.filter(u => u.driver)
+          .sort((a, b) => b.driver.earnings_total - a.driver.earnings_total).slice(0, 6)
+          .map(u => ({ name: u.name, rating: u.rating, category: u.driver.category,
+            earnings_total: u.driver.earnings_total,
+            trips: done.filter(r => r.driver_id === u.id).length }));
+        const green = done.reduce((acc, r) => {
+          const c = co2ForRide(r.category, r.distance_km);
+          acc.emitted += c.emitted_kg; acc.saved += c.saved_kg; return acc;
+        }, { emitted: 0, saved: 0 });
+        return ok({
+          hourly, daily, funnel, mix, zones, leaderboard,
+          green: { emitted_kg: Math.round(green.emitted * 10) / 10, saved_kg: Math.round(green.saved * 10) / 10 },
+          avg_rating: 4.85, ratings_count: done.length,
+          completion_rate: funnel.requested ? Math.round(funnel.completed / funnel.requested * 100) : 0,
+        });
       }
       if (p === '/api/admin/revenue') {
         const done = S.rides.filter(r => r.status === 'COMPLETED');

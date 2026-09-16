@@ -228,6 +228,18 @@ export function estimateOutstation(points, tripType, userId) {
   return { type: 'outstation', trip_type: tripType, oneWayKm, durMin, prime, options };
 }
 
+/* ================= GREEN LEDGER =================
+   CO₂ per km by category (kg, tailpipe estimates) vs an average-car baseline.
+   EV counts grid-adjusted-near-zero; "saved" = baseline − emitted, floored 0. */
+export const CO2_PER_KM = { bike: 0.045, auto: 0.062, mini: 0.125, prime: 0.155, suv: 0.185, ev: 0.015 };
+const CAR_BASELINE = 0.145;
+export function co2ForRide(category, distKm) {
+  const f = CO2_PER_KM[category] ?? CAR_BASELINE;
+  const emitted = round2(f * (distKm || 0));
+  const saved = round2(Math.max(0, (CAR_BASELINE - f) * (distKm || 0)));
+  return { emitted_kg: emitted, saved_kg: saved };
+}
+
 /** validate + compute promo discount */
 export function applyPromo(code, userId, fare) {
   if (!code) return { discount: 0 };

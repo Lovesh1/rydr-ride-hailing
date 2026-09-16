@@ -126,6 +126,35 @@ try {
   const pp2 = await api('POST', '/api/postpaid/activate');
   assert(pp2.status === 400, 'postpaid double-activation refused');
 
+  // Ryder Wrapped reflects the completed ride
+  const wrapped = await api('GET', '/api/me/wrapped');
+  assert(wrapped.status === 200 && wrapped.data.rides >= 1 && wrapped.data.km > 0
+    && wrapped.data.coins > 0 && wrapped.data.streak_days >= 1,
+    `wrapped: ${wrapped.data.rides} rides, ${wrapped.data.km} km, ${wrapped.data.coins} coins, streak ${wrapped.data.streak_days}`);
+
+  // Fare Lock: lock a low fare, then booking honors it
+  const lockRes = await api('POST', '/api/fares/lock', {
+    category: 'auto', fare: 60, pickup_name: 'HSR', drop_name: 'Phoenix' });
+  assert(lockRes.status === 200 && lockRes.data.locked, 'fare locked (₹5 charged)');
+  const lockedBook = await api('POST', '/api/rides', {
+    pickup: { lat: 12.9116, lng: 77.6474, name: 'HSR' },
+    drop: { lat: 12.9968, lng: 77.6966, name: 'Phoenix' }, category: 'auto',
+  });
+  assert(lockedBook.status === 200 && lockedBook.data.fare_quoted === 60
+    && lockedBook.data.fare_breakdown.fare_lock_saving < 0,
+    `locked booking honors ₹60 (saved ${-lockedBook.data.fare_breakdown.fare_lock_saving})`);
+  await api('POST', `/api/rides/${lockedBook.data.id}/cancel`, { reason: 'smoke cleanup' });
+
+  // admin analytics shape
+  const aOtp2 = await api('POST', '/api/auth/otp', { phone: '+919999900000' });
+  const aVer2 = await api('POST', '/api/auth/verify', { phone: '+919999900000', otp: aOtp2.data.demo_otp });
+  const rTok = TOKEN; TOKEN = aVer2.data.token;
+  const an = await api('GET', '/api/admin/analytics');
+  assert(an.status === 200 && an.data.hourly.length === 24 && an.data.daily.length === 7
+    && an.data.funnel.completed >= 1 && an.data.leaderboard.length > 0,
+    `analytics: 24h pulse, 7d GMV, funnel ${an.data.funnel.requested}→${an.data.funnel.completed}, leaderboard ${an.data.leaderboard.length}`);
+  TOKEN = rTok;
+
   // ride preferences round-trip
   const setP = await api('POST', '/api/preferences', { quiet: true, prefer_woman_driver: true });
   assert(setP.status === 200 && setP.data.quiet === true, 'ride preferences saved');
