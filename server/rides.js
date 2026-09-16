@@ -1,7 +1,12 @@
 // server/rides.js — ride state machine, driver matching cascade, wallet ledger
+// Supports city rides (with stops), hourly rentals, outstation, and scheduled dispatch.
 import { db } from './db.js';
-import { uid, now, otp4, haversineKm, rupees } from './lib.js';
-import { fareFor, routeMetrics, surgeAt, applyPromo } from './pricing.js';
+import { uid, now, otp4, haversineKm, rupees, round2 } from './lib.js';
+import {
+  cityFare, routeMetrics, surgeAt, applyPromo, isNight, isPrime,
+  RATE_CARD, RENTAL_PACKAGES, RENTAL_RATES, OUTSTATION_RATES,
+  estimateOutstation,
+} from './pricing.js';
 import { emitTo, emitAdmins } from './events.js';
 
 const OFFER_TIMEOUT_MS = 15000;
@@ -37,6 +42,10 @@ export function rideView(rideId) {
     LEFT JOIN users du ON du.id = r.driver_id
     LEFT JOIN drivers d ON d.user_id = r.driver_id
     WHERE r.id = ?`).get(rideId);
+  if (r) {
+    try { r.fare_breakdown = JSON.parse(r.fare_breakdown || 'null'); } catch {}
+    try { r.stops = JSON.parse(r.stops || '[]'); } catch {}
+  }
   return r;
 }
 
@@ -48,41 +57,99 @@ function pushRide(rideId, extra = {}) {
   emitAdmins('ride', { ...v, ...extra });
 }
 
+/* ============ quoting ============ */
+function quoteFor(riderId, body) {
+  const type = body.type || 'city';
+  const prime = isPrime(riderId);
+
+  if (type === 'rental') {
+    const pkg = RENTAL_PACKAGES.find(p => p.id === body.package_id);
+    const rate = RENTAL_RATES[body.category];
+    if (!pkg || !rate) throw new Error('unknown rental package/category');
+    let price = rate.perHour * pkg.hours;
+    const primeDiscount = prime ? round2(price * 0.10) : 0;
+    price -= primeDiscount;
+    const gst = round2(price * 0.05);
+    return {
+      fare: rupees(price + gst), surge: 1, distKm: pkg.km, durMin: pkg.hours * 60,
+      breakdown: { package_price: rate.perHour * pkg.hours, prime_discount: -primeDiscount,
+        extra_km_rate: rate.extraKm, extra_min_rate: rate.extraMin, gst },
+    };
+  }
+
+  if (type === 'outstation') {
+    const est = estimateOutstation(
+      [body.pickup, ...(body.stops || []), body.drop], body.trip_type || 'oneway', riderId);
+    const opt = est.options.find(o => o.category === body.category);
+    if (!opt) throw new Error('category not available for outstation');
+    return { fare: opt.fare, surge: 1, distKm: est.oneWayKm, durMin: est.durMin, breakdown: opt.breakdown };
+  }
+
+  // city
+  const points = [body.pickup, ...(body.stops || []), body.drop];
+  const { distKm, durMin } = routeMetrics(points);
+  const { surge } = surgeAt(body.pickup.lat, body.pickup.lng);
+  const f = cityFare(body.category, distKm, durMin, { surge, night: isNight(), prime });
+  if (!f) throw new Error('unknown category');
+  return { fare: f.total, surge, distKm, durMin, breakdown: f.breakdown };
+}
+
 /* ============ create + match ============ */
 export function createRide(riderId, body) {
-  const { pickup, drop, category, promo_code, payment_method } = body;
-  const { distKm, durMin } = routeMetrics(pickup.lat, pickup.lng, drop.lat, drop.lng);
-  const { surge } = surgeAt(pickup.lat, pickup.lng);
-  const fare = fareFor(category, distKm, durMin, surge);
-  if (!fare) throw new Error('unknown category');
+  const { pickup, drop, category, promo_code, payment_method, scheduled_at } = body;
+  const q = quoteFor(riderId, body);
 
-  const { discount, error } = applyPromo(promo_code, riderId, fare);
+  const { discount, error } = applyPromo(promo_code, riderId, q.fare);
   if (error && promo_code) throw new Error(error);
 
+  const isScheduled = scheduled_at && scheduled_at > now() + 60000;
   const id = uid('R');
-  db.prepare(`INSERT INTO rides (id,rider_id,category,status,pickup_lat,pickup_lng,pickup_addr,
-      drop_lat,drop_lng,drop_addr,otp,distance_km,duration_min,fare_quoted,surge,
-      promo_code,promo_discount,payment_method,requested_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-    id, riderId, category, 'SEARCHING',
+  db.prepare(`INSERT INTO rides (id,rider_id,category,type,trip_type,package_id,status,
+      pickup_lat,pickup_lng,pickup_addr,drop_lat,drop_lng,drop_addr,stops,otp,
+      distance_km,duration_min,fare_quoted,fare_breakdown,surge,
+      promo_code,promo_discount,payment_method,scheduled_at,requested_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    id, riderId, category, body.type || 'city', body.trip_type || null, body.package_id || null,
+    isScheduled ? 'SCHEDULED' : 'SEARCHING',
     pickup.lat, pickup.lng, pickup.name || 'Pickup',
-    drop.lat, drop.lng, drop.name || 'Drop',
-    otp4(), distKm, durMin, fare - discount, surge,
+    drop?.lat ?? pickup.lat, drop?.lng ?? pickup.lng, drop?.name || (body.type === 'rental' ? 'As directed (rental)' : 'Drop'),
+    JSON.stringify(body.stops || []), otp4(),
+    q.distKm, q.durMin, q.fare - discount, JSON.stringify(q.breakdown), q.surge,
     promo_code ? promo_code.toUpperCase() : null, discount,
-    payment_method || 'wallet', now());
+    payment_method || 'wallet', isScheduled ? scheduled_at : null, now());
 
-  offers.set(id, { driverId: null, timer: null, wave: 0, tried: new Set() });
-  pushRide(id);
-  nextOffer(id);
+  if (!isScheduled) {
+    offers.set(id, { driverId: null, timer: null, wave: 0, tried: new Set() });
+    pushRide(id);
+    nextOffer(id);
+  } else {
+    pushRide(id);
+  }
   return rideView(id);
 }
+
+/** scheduler tick: dispatch scheduled rides whose time has come (T-2min) */
+export function dispatchDueScheduled() {
+  const due = db.prepare(
+    "SELECT id FROM rides WHERE status = 'SCHEDULED' AND scheduled_at <= ?").all(now() + 120000);
+  for (const { id } of due) {
+    db.prepare("UPDATE rides SET status = 'SEARCHING' WHERE id = ?").run(id);
+    offers.set(id, { driverId: null, timer: null, wave: 0, tried: new Set() });
+    pushRide(id);
+    nextOffer(id);
+  }
+  return due.length;
+}
+
+/** rentals & outstation dispatch to mini/prime/suv/ev pools; city matches its own category */
+function matchCategory(ride) { return ride.category; }
 
 function candidates(ride, tried, radiusKm) {
   const rows = db.prepare(`
     SELECT d.user_id, d.lat, d.lng FROM drivers d
     JOIN users u ON u.id = d.user_id
     WHERE d.is_online = 1 AND d.kyc_status = 'verified' AND d.current_ride_id IS NULL
-      AND d.category = ? AND u.status = 'active'`).all(ride.category);
+      AND d.category = ? AND u.status = 'active'`).all(matchCategory(ride));
   return rows
     .map(d => ({ ...d, dist: haversineKm(ride.pickup_lat, ride.pickup_lng, d.lat, d.lng) }))
     .filter(d => d.dist <= radiusKm && !tried.has(d.user_id))
@@ -124,7 +191,7 @@ function nextOffer(rideId) {
   emitAdmins('offer', { ride_id: rideId, driver_id: drv.user_id });
   if (offerHook) offerHook(rideId, drv.user_id);
 
-  st.timer = setTimeout(() => {          // timeout → try next driver
+  st.timer = setTimeout(() => {
     if (offers.get(rideId)?.driverId === drv.user_id) {
       emitTo(drv.user_id, 'offer_closed', { ride_id: rideId });
       st.driverId = null;
@@ -180,7 +247,10 @@ export function startRide(rideId, driverId, otp) {
   const r = db.prepare('SELECT * FROM rides WHERE id = ? AND driver_id = ?').get(rideId, driverId);
   if (!r || !['ACCEPTED', 'ARRIVED'].includes(r.status)) throw new Error('bad state');
   if (String(otp) !== r.otp) throw new Error('incorrect OTP');
-  db.prepare("UPDATE rides SET status = 'ONGOING', started_at = ? WHERE id = ?").run(now(), rideId);
+  // waiting charge clock: time between arrival and start
+  const waitingMin = r.arrived_at ? round2((now() - r.arrived_at) / 60000) : 0;
+  db.prepare("UPDATE rides SET status = 'ONGOING', started_at = ?, waiting_min = ? WHERE id = ?")
+    .run(now(), waitingMin, rideId);
   pushRide(rideId);
   return rideView(rideId);
 }
@@ -189,11 +259,19 @@ export function completeRide(rideId, driverId) {
   const r = db.prepare('SELECT * FROM rides WHERE id = ? AND driver_id = ?').get(rideId, driverId);
   if (!r || r.status !== 'ONGOING') throw new Error('bad state');
 
-  const fare = rupees(r.fare_quoted);
+  // Recompute the final fare including any accrued waiting charge (city rides only).
+  let fare = rupees(r.fare_quoted);
+  let breakdown = null;
+  try { breakdown = JSON.parse(r.fare_breakdown || 'null'); } catch {}
+  if (r.type === 'city' && r.waiting_min > 5 && RATE_CARD[r.category]) {
+    const extra = rupees(Math.max(0, r.waiting_min - 5) * RATE_CARD[r.category].waitPerMin);
+    fare += extra;
+    if (breakdown) breakdown.waiting_charge = extra;
+  }
   const earning = rupees(fare * (1 - TAKE_RATE));
 
-  const tx = db.prepare("UPDATE rides SET status = 'COMPLETED', fare_final = ?, completed_at = ? WHERE id = ?");
-  tx.run(fare, now(), rideId);
+  db.prepare("UPDATE rides SET status = 'COMPLETED', fare_final = ?, fare_breakdown = ?, completed_at = ? WHERE id = ?")
+    .run(fare, JSON.stringify(breakdown), now(), rideId);
   db.prepare('UPDATE drivers SET current_ride_id = NULL, earnings_total = earnings_total + ? WHERE user_id = ?')
     .run(earning, driverId);
   db.prepare('UPDATE users SET rides_count = rides_count + 1 WHERE id = ?').run(r.rider_id);
@@ -219,7 +297,6 @@ export function cancelRide(rideId, byUserId, byRole, reason) {
   const st = offers.get(rideId);
   if (st) { clearTimeout(st.timer); if (st.driverId) emitTo(st.driverId, 'offer_closed', { ride_id: rideId }); offers.delete(rideId); }
 
-  // cancellation fee: rider cancelling >60s after driver accepted
   let fee = 0;
   if (byRole === 'rider' && r.driver_id && r.accepted_at && now() - r.accepted_at > 60000) {
     fee = 30;

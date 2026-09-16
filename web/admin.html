@@ -3,21 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RYDR — Ops Console</title>
+<title>Ryder — Ops Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@1,500;1,600&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/base.css">
 <style>
 body{min-height:100vh}
 /* ---- login ---- */
-.gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
-  background:radial-gradient(ellipse at 50% 0%,rgba(157,140,255,.06),transparent 55%),var(--bg)}
+.gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 .gate-card{width:100%;max-width:420px;padding:44px 40px}
-.gate h1{font-family:var(--disp);font-weight:500;font-size:34px;letter-spacing:-.02em;margin:22px 0 10px}
-.gate h1 .serif{font-family:var(--serif);font-style:italic;color:var(--violet)}
-.gate p{color:var(--mut);font-size:13.5px;line-height:1.7;margin-bottom:30px}
+.gate h1{font-family:var(--disp);font-weight:800;font-size:32px;letter-spacing:-.02em;margin:20px 0 10px}
+.gate h1 .serif{font-family:var(--serif);font-style:italic;font-weight:600;color:var(--violet)}
+.gate p{color:var(--mut);font-size:13.5px;line-height:1.7;margin-bottom:28px;font-weight:600}
 .gate .field{margin-bottom:12px}
 .gate .devotp{margin:8px 0 14px;text-align:center}
 
@@ -25,88 +23,87 @@ body{min-height:100vh}
 .shell{display:none;min-height:100vh}
 .shell.on{display:flex}
 aside{width:250px;min-height:100vh;border-right:1px solid var(--hair);padding:26px 18px;
-  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;background:var(--bg2)}
-.logo{font-family:var(--disp);font-weight:600;font-size:23px;padding:0 12px 6px;text-decoration:none}
-.logo i{font-style:normal;color:var(--violet)}
-.logo small{display:block;font-size:9.5px;color:var(--mut);letter-spacing:.3em;margin-top:4px;font-family:var(--ui)}
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;background:var(--surface)}
+.logo{font-family:var(--disp);font-weight:800;font-size:21px;padding:0 12px 4px;text-decoration:none;display:flex;align-items:center;gap:10px}
+.logo .mark{width:32px;height:32px;border-radius:10px;background:var(--emerald);color:#fff;display:grid;place-items:center;font-size:15px}
+.logo small{display:block;font-size:9px;color:var(--mut);letter-spacing:.28em;font-weight:800}
 .navs{margin-top:26px}
-.nv{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:14px;color:var(--mut);
-  font-size:13.5px;font-weight:500;cursor:pointer;border:1px solid transparent;background:none;width:100%;
-  text-align:left;font-family:var(--ui);margin-bottom:4px;transition:all .2s;letter-spacing:.02em}
-.nv:hover{color:var(--ink);background:rgba(255,255,255,.035)}
-.nv.on{color:var(--violet);background:rgba(157,140,255,.08);border-color:rgba(157,140,255,.25)}
-.nv .cnt{margin-left:auto;font-size:10px;font-weight:700;background:var(--gold);color:#141208;padding:2px 8px;border-radius:99px}
-.me-card{margin-top:auto;padding:14px;display:flex;gap:12px;align-items:center}
-.me-card .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--violet),#5b4fa8);
-  display:grid;place-items:center;font-family:var(--disp);font-weight:600;font-size:13px}
+.nv{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;color:var(--mut);
+  font-size:13.5px;font-weight:700;cursor:pointer;border:1px solid transparent;background:none;width:100%;
+  text-align:left;font-family:var(--ui);margin-bottom:4px;transition:all .2s}
+.nv:hover{color:var(--ink);background:var(--bg)}
+.nv.on{color:var(--emerald-deep);background:var(--emerald-dim);border-color:var(--mint-deep)}
+.nv .cnt{margin-left:auto;font-size:10px;font-weight:800;background:var(--gold);color:#fff;padding:2px 8px;border-radius:99px}
+.me-card{margin-top:auto;padding:14px;display:flex;gap:12px;align-items:center;border-radius:16px;background:var(--bg)}
+.me-card .av{width:38px;height:38px;border-radius:50%;background:var(--violet-dim);color:var(--violet);
+  display:grid;place-items:center;font-family:var(--disp);font-weight:800;font-size:13px}
 .me-card b{font-size:13px;display:block}
-.me-card span{font-size:11px;color:var(--mut)}
+.me-card span{font-size:11px;color:var(--mut);font-weight:600}
 .me-card .out{margin-left:auto;cursor:pointer;color:var(--mut);background:none;border:none;font-size:15px}
 .me-card .out:hover{color:var(--red)}
 
 main{flex:1;padding:30px 36px;max-width:1500px}
-.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:16px;flex-wrap:wrap}
-.topbar h1{font-family:var(--disp);font-weight:500;font-size:30px;letter-spacing:-.02em}
-.topbar h1 .serif{font-family:var(--serif);font-style:italic;color:var(--violet)}
-.topbar h1 span.sub{color:var(--mut);font-size:13px;font-family:var(--ui);font-weight:400;display:block;margin-top:4px;letter-spacing:.02em}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;gap:16px;flex-wrap:wrap}
+.topbar h1{font-family:var(--disp);font-weight:800;font-size:28px;letter-spacing:-.02em}
+.topbar h1 .serif{font-family:var(--serif);font-style:italic;font-weight:600;color:var(--emerald)}
+.topbar h1 span.sub{color:var(--mut);font-size:13px;font-weight:600;display:block;margin-top:4px;letter-spacing:0}
 
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
-.kpi{padding:24px;position:relative;overflow:hidden}
-.kpi .lbl{font-size:10.5px;color:var(--mut);letter-spacing:.2em;text-transform:uppercase;font-weight:600}
-.kpi .val{font-family:var(--disp);font-size:38px;font-weight:500;letter-spacing:-.02em;margin:10px 0 2px}
-.kpi .d{font-size:12px;color:var(--mut)}
+.kpi{padding:22px}
+.kpi .lbl{font-size:10px;color:var(--mut);letter-spacing:.2em;text-transform:uppercase;font-weight:800}
+.kpi .val{font-family:var(--disp);font-size:36px;font-weight:800;letter-spacing:-.02em;margin:8px 0 2px}
+.kpi .d{font-size:12px;color:var(--mut);font-weight:600}
 .kpi .d.up{color:var(--emerald)}
-.kpi .d.warn{color:var(--amber)}
 
 .grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:20px}
-.panel{padding:24px}
-.panel h3{font-family:var(--disp);font-weight:500;font-size:16px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;letter-spacing:.01em}
+.panel{padding:22px}
+.panel h3{font-family:var(--disp);font-weight:800;font-size:15px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
 
 /* live map */
 .fleetmap{height:380px;border-radius:var(--r-lg);border:1px solid var(--hair);position:relative;overflow:hidden}
-.fm-car{position:absolute;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;
-  background:rgba(14,16,19,.92);border:1px solid var(--hair-hi);display:grid;place-items:center;font-size:13px;
-  transition:left 2s linear,top 2s linear;z-index:3}
-.fm-car.busy{border-color:rgba(217,192,138,.6);box-shadow:0 0 18px rgba(217,192,138,.2)}
-.fm-legend{position:absolute;bottom:14px;left:16px;z-index:5;display:flex;gap:14px;font-size:11px;color:var(--mut);
-  background:rgba(8,9,11,.8);padding:8px 14px;border-radius:99px;border:1px solid var(--hair)}
+.fm-car{position:absolute;transform:translate(-50%,-50%);width:32px;height:32px;border-radius:50%;
+  background:#fff;border:1px solid var(--hair-hi);display:grid;place-items:center;font-size:13px;
+  transition:left 2s linear,top 2s linear;z-index:3;box-shadow:var(--shadow-card)}
+.fm-car.busy{border-color:var(--gold);box-shadow:0 0 0 4px var(--gold-dim)}
+.fm-legend{position:absolute;bottom:14px;left:16px;z-index:5;display:flex;gap:14px;font-size:11px;color:var(--mut);font-weight:700;
+  background:#fff;padding:8px 14px;border-radius:99px;border:1px solid var(--hair);box-shadow:var(--shadow-card)}
 .fm-legend i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
 
 /* tables */
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;color:var(--mut);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.18em;
+th{text-align:left;color:var(--mut);font-weight:800;font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;
   padding:12px 14px;border-bottom:1px solid var(--hair)}
-td{padding:14px;border-bottom:1px solid rgba(255,255,255,.04)}
-tr:hover td{background:rgba(255,255,255,.02)}
-.mono{font-family:var(--disp);color:var(--mut);font-size:12px;letter-spacing:.04em}
+td{padding:13px 14px;border-bottom:1px solid var(--hair);font-weight:600}
+tr:hover td{background:var(--bg2)}
+.mono{font-family:var(--disp);color:var(--mut);font-size:12px;letter-spacing:.04em;font-weight:700}
 .who{display:flex;align-items:center;gap:11px}
-.who .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:10.5px;font-weight:600;
-  font-family:var(--disp);background:var(--card-hi);border:1px solid var(--hair)}
-.act{background:var(--card-hi);border:1px solid var(--hair);color:var(--ink);border-radius:10px;padding:8px 14px;
-  font-size:11.5px;font-weight:600;cursor:pointer;font-family:var(--ui);transition:all .15s;letter-spacing:.02em}
-.act:hover{border-color:var(--hair-hi)}
+.who .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:10.5px;font-weight:800;
+  font-family:var(--disp);background:var(--emerald-dim);color:var(--emerald-deep)}
+.act{background:#fff;border:1.5px solid var(--hair-hi);color:var(--ink-dim);border-radius:10px;padding:7px 13px;
+  font-size:11.5px;font-weight:800;cursor:pointer;font-family:var(--ui);transition:all .15s}
+.act:hover{border-color:var(--mut)}
 .act.ok:hover{border-color:var(--emerald);color:var(--emerald)}
 .act.no:hover{border-color:var(--red);color:var(--red)}
 
 .filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-.fc{padding:9px 18px;border-radius:999px;border:1px solid var(--hair);background:var(--card);color:var(--mut);
-  font-size:12px;font-weight:600;cursor:pointer;font-family:var(--ui);transition:all .15s;letter-spacing:.06em}
-.fc.on{border-color:var(--violet);color:var(--violet);background:rgba(157,140,255,.07)}
+.fc{padding:9px 18px;border-radius:999px;border:1.5px solid var(--hair);background:#fff;color:var(--mut);
+  font-size:11.5px;font-weight:800;cursor:pointer;font-family:var(--ui);transition:all .15s;letter-spacing:.06em}
+.fc.on{border-color:var(--emerald);color:var(--emerald-deep);background:var(--emerald-dim)}
 
 /* zones */
-.zrow{display:flex;align-items:center;gap:14px;padding:14px 4px;border-bottom:1px solid rgba(255,255,255,.045)}
+.zrow{display:flex;align-items:center;gap:14px;padding:13px 4px;border-bottom:1px solid var(--hair)}
 .zrow:last-child{border:none}
-.zrow b{font-size:13.5px;flex:1;font-weight:600}
-.zrow .mult{font-family:var(--disp);font-size:16px;width:52px;text-align:right}
+.zrow b{font-size:13.5px;flex:1;font-weight:800}
+.zrow .mult{font-family:var(--disp);font-weight:800;font-size:15px;width:52px;text-align:right}
 .mult.hot{color:var(--red)}.mult.warm{color:var(--amber)}.mult.cool{color:var(--mut)}
-.zrow input[type=range]{flex:1.4;accent-color:var(--gold)}
+.zrow input[type=range]{flex:1.4;accent-color:var(--emerald)}
 
-/* revenue bars */
-.rv-row{display:flex;align-items:center;gap:14px;padding:12px 4px}
-.rv-row b{font-size:13px;width:70px;text-transform:capitalize;font-weight:600}
-.rv-track{flex:1;height:8px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden}
-.rv-track i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--violet),var(--gold))}
-.rv-amt{font-family:var(--disp);font-size:14px;width:86px;text-align:right;color:var(--gold)}
+/* revenue */
+.rv-row{display:flex;align-items:center;gap:14px;padding:11px 4px}
+.rv-row b{font-size:13px;width:76px;text-transform:capitalize;font-weight:800}
+.rv-track{flex:1;height:9px;border-radius:99px;background:var(--bg);border:1px solid var(--hair);overflow:hidden}
+.rv-track i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--emerald),#4CBA8B)}
+.rv-amt{font-family:var(--disp);font-weight:800;font-size:14px;width:86px;text-align:right;color:var(--emerald-deep)}
 
 .viewx{display:none}
 .viewx.on{display:block}
@@ -115,30 +112,29 @@ tr:hover td{background:rgba(255,255,255,.02)}
 </style>
 </head>
 <body>
-<div class="grain"></div>
 
-<!-- ================= LOGIN GATE ================= -->
+<!-- LOGIN GATE -->
 <div class="gate" id="gate">
   <div class="gate-card card">
     <span class="micro" style="color:var(--violet)">RESTRICTED · OPS CONSOLE</span>
     <h1>Mission <span class="serif">control.</span></h1>
-    <p>Admin sign-in. Seeded operator account: <b style="color:var(--ink-dim)">+919999900000</b></p>
+    <p>Admin sign-in. Seeded operator account: <b style="color:var(--ink)">+919999900000</b></p>
     <div id="g-ph">
       <div class="field"><input class="input" id="gPhone" value="+919999900000" inputmode="tel"></div>
-      <button class="btn btn-dark wide" style="border-color:rgba(157,140,255,.4)" onclick="gOtp()">Request code</button>
+      <button class="btn btn-dark wide" onclick="gOtp()">Request code</button>
     </div>
     <div id="g-otp" style="display:none">
-      <div class="field"><input class="input" id="gCode" placeholder="6-digit code" inputmode="numeric" style="text-align:center;letter-spacing:.4em;font-family:var(--disp)"></div>
+      <div class="field"><input class="input" id="gCode" placeholder="6-digit code" inputmode="numeric" style="text-align:center;letter-spacing:.4em"></div>
       <div class="devotp"><span class="pill vi" id="gDev"></span></div>
-      <button class="btn btn-dark wide" style="border-color:rgba(157,140,255,.4)" onclick="gVerify()">Enter console</button>
+      <button class="btn btn-dark wide" onclick="gVerify()">Enter console</button>
     </div>
   </div>
 </div>
 
-<!-- ================= SHELL ================= -->
+<!-- SHELL -->
 <div class="shell" id="shell">
   <aside>
-    <a class="logo" href="/">RYD<i>R</i><small>OPS CONSOLE</small></a>
+    <a class="logo" href="/"><span class="mark">R</span><span>Ryder<small>OPS CONSOLE</small></span></a>
     <div class="navs">
       <button class="nv on" data-v="overview" onclick="nav(this)">◳ &nbsp;Overview</button>
       <button class="nv" data-v="rides" onclick="nav(this)">⌖ &nbsp;Rides</button>
@@ -146,9 +142,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <button class="nv" data-v="riders" onclick="nav(this)">◌ &nbsp;Riders</button>
       <button class="nv" data-v="zones" onclick="nav(this)">◉ &nbsp;Surge zones</button>
       <button class="nv" data-v="revenue" onclick="nav(this)">◈ &nbsp;Revenue</button>
-      <button class="nv" data-v="safety" onclick="nav(this)">⛨ &nbsp;Safety <span class="cnt" id="sosCnt" style="display:none;background:var(--red);color:#fff">0</span></button>
+      <button class="nv" data-v="safety" onclick="nav(this)">⛨ &nbsp;Safety <span class="cnt" id="sosCnt" style="display:none;background:var(--red)">0</span></button>
     </div>
-    <div class="me-card card">
+    <div class="me-card">
       <span class="av" id="meAv">—</span>
       <span><b id="meName">—</b><span>super admin</span></span>
       <button class="out" onclick="API.logout()" title="Sign out">⏻</button>
@@ -158,7 +154,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <main>
     <div class="topbar">
       <h1 id="vTitle">Mission <span class="serif">control.</span><span class="sub">The whole network, breathing in real time.</span></h1>
-      <span class="pill vi"><span class="dot live"></span>LIVE · BENGALURU</span>
+      <span class="pill em"><span class="dot live"></span>LIVE · BENGALURU</span>
     </div>
 
     <!-- OVERVIEW -->
@@ -179,7 +175,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div class="panel card">
           <h3>Needs attention</h3>
           <div id="attnList"></div>
-          <h3 style="margin-top:26px">Latest rides</h3>
+          <h3 style="margin-top:24px">Latest rides</h3>
           <div id="miniRides" style="font-size:12.5px"></div>
         </div>
       </div>
@@ -189,6 +185,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="viewx" id="x-rides">
       <div class="filters">
         <button class="fc on" data-st="" onclick="rideFilter(this)">ALL</button>
+        <button class="fc" data-st="SCHEDULED" onclick="rideFilter(this)">SCHEDULED</button>
         <button class="fc" data-st="SEARCHING" onclick="rideFilter(this)">SEARCHING</button>
         <button class="fc" data-st="ACCEPTED" onclick="rideFilter(this)">EN ROUTE</button>
         <button class="fc" data-st="ONGOING" onclick="rideFilter(this)">ON TRIP</button>
@@ -197,7 +194,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
       <div class="panel card" style="padding:6px 10px;overflow-x:auto">
         <table>
-          <thead><tr><th>Ride</th><th>Rider</th><th>Driver</th><th>Route</th><th>Cat</th><th>Fare</th><th>Surge</th><th>Status</th><th>When</th></tr></thead>
+          <thead><tr><th>Ride</th><th>Rider</th><th>Driver</th><th>Route</th><th>Type</th><th>Fare</th><th>Surge</th><th>Status</th><th>When</th></tr></thead>
           <tbody id="rideRows"></tbody>
         </table>
       </div>
@@ -225,7 +222,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="viewx" id="x-riders">
       <div class="panel card" style="padding:6px 10px;overflow-x:auto">
         <table>
-          <thead><tr><th>Rider</th><th>Phone</th><th>Rides</th><th>Rating</th><th>Wallet</th><th>Joined</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Rider</th><th>Phone</th><th>Rides</th><th>Rating</th><th>Wallet</th><th>Prime</th><th>Status</th><th></th></tr></thead>
           <tbody id="riderRows"></tbody>
         </table>
       </div>
@@ -247,19 +244,32 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div class="kpi card"><div class="lbl">Trips settled</div><div class="val" id="rvTrips">—</div><div class="d">lifetime</div></div>
         <div class="kpi card"><div class="lbl">Partner payouts</div><div class="val" id="rvPay">—</div><div class="d">78% of every fare</div></div>
       </div>
-      <div class="panel card" style="max-width:760px">
-        <h3>Revenue by category</h3>
-        <div id="rvCats"></div>
+      <div class="grid2">
+        <div class="panel card">
+          <h3>Revenue by category</h3>
+          <div id="rvCats"></div>
+        </div>
+        <div class="panel card">
+          <h3>Revenue by service</h3>
+          <div id="rvTypes"></div>
+        </div>
       </div>
     </div>
 
     <!-- SAFETY -->
     <div class="viewx" id="x-safety">
-      <div class="panel card" style="padding:6px 10px;overflow-x:auto">
+      <div class="panel card" style="margin-bottom:16px;padding:6px 10px;overflow-x:auto">
         <h3 style="padding:16px 8px 4px">SOS events</h3>
         <table>
           <thead><tr><th>Event</th><th>Ride</th><th>Raised by</th><th>When</th><th>Status</th><th></th></tr></thead>
           <tbody id="sosRows"></tbody>
+        </table>
+      </div>
+      <div class="panel card" style="padding:6px 10px;overflow-x:auto">
+        <h3 style="padding:16px 8px 4px">Support tickets</h3>
+        <table>
+          <thead><tr><th>Ticket</th><th>User</th><th>Type</th><th>Message</th><th>Status</th><th></th></tr></thead>
+          <tbody id="tkRows"></tbody>
         </table>
       </div>
     </div>
@@ -269,8 +279,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <script src="/assets/api.js"></script>
 <script>
 let ME=null, fleetProj=null;
-const EMO={bike:'🏍',auto:'🛺',mini:'🚗',prime:'🚘',ev:'⚡'};
-const STP={SEARCHING:'amber',ACCEPTED:'gold',ARRIVED:'gold',ONGOING:'vi',COMPLETED:'em',CANCELLED:'red',EXPIRED:'mut'};
+const EMO={bike:'🏍',auto:'🛺',mini:'🚗',prime:'🚘',suv:'🚙',ev:'⚡'};
+const STP={SCHEDULED:'vi',SEARCHING:'amber',ACCEPTED:'gold',ARRIVED:'gold',ONGOING:'vi',COMPLETED:'em',CANCELLED:'red',EXPIRED:'mut'};
 
 /* ---------- gate ---------- */
 async function gOtp(){
@@ -296,7 +306,7 @@ async function boot(){
   $('#meName').textContent=ME.name;
   $('#meAv').textContent=ME.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   API.connect(); wire();
-  loadOverview(); loadRides(); loadDrivers(); loadRiders(); loadZones(); loadRevenue(); loadSos(); loadPositions();
+  loadOverview(); loadRides(); loadDrivers(); loadRiders(); loadZones(); loadRevenue(); loadSos(); loadTickets(); loadPositions();
   setInterval(loadOverview, 8000);
 }
 
@@ -306,17 +316,18 @@ function wire(){
   API.on('sos', s=>{ toast(`⛨ SOS raised on ${s.ride_id} by ${s.raised_by}`,true); loadSos(); loadOverview(); });
   API.on('driver_status', ()=>loadDrivers());
   API.on('zone', ()=>loadZones());
+  API.on('ticket', ()=>{ loadTickets(); loadOverview(); });
 }
 
 /* ---------- nav ---------- */
 const TITLES={
   overview:['Mission <span class="serif">control.</span>','The whole network, breathing in real time.'],
-  rides:['Every <span class="serif">journey.</span>','Live and historical trips across the network.'],
+  rides:['Every <span class="serif">journey.</span>','City, rental, outstation & scheduled — live and historical.'],
   drivers:['The <span class="serif">fleet.</span>','KYC approvals, quality and partner management.'],
-  riders:['The <span class="serif">riders.</span>','Accounts, wallets and standing.'],
+  riders:['The <span class="serif">riders.</span>','Accounts, wallets, Prime and standing.'],
   zones:['Surge <span class="serif">dial.</span>','Move a slider, move the market — carefully.'],
   revenue:['The <span class="serif">ledger.</span>','GMV, take rate and partner payouts.'],
-  safety:['Safety <span class="serif">desk.</span>','SOS events and incident response.'],
+  safety:['Safety <span class="serif">desk.</span>','SOS events, incidents and support tickets.'],
 };
 function nav(btn){
   $$('.nv').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
@@ -324,6 +335,7 @@ function nav(btn){
   const [t,s]=TITLES[btn.dataset.v];
   $('#vTitle').innerHTML=t+`<span class="sub">${s}</span>`;
 }
+function navTo(v){ nav($(`.nv[data-v="${v}"]`)); }
 
 /* ---------- overview ---------- */
 async function loadOverview(){
@@ -338,19 +350,21 @@ async function loadOverview(){
   $('#kCancSub').textContent=`${o.cancelled_today} of ${o.rides_today} requests`;
   $('#kycCnt').style.display=o.kyc_pending?'inline':'none';
   $('#kycCnt').textContent=o.kyc_pending;
-  $('#sosCnt').style.display=o.open_sos?'inline':'none';
-  $('#sosCnt').textContent=o.open_sos;
+  const alerts=o.open_sos+o.open_tickets;
+  $('#sosCnt').style.display=alerts?'inline':'none';
+  $('#sosCnt').textContent=alerts;
   $('#attnList').innerHTML=[
     o.open_sos?`<div class="zrow"><b style="color:var(--red)">⛨ ${o.open_sos} open SOS event${o.open_sos>1?'s':''}</b><button class="act no" onclick="navTo('safety')">respond</button></div>`:'',
+    o.open_tickets?`<div class="zrow"><b>${o.open_tickets} open support ticket${o.open_tickets>1?'s':''}</b><button class="act" onclick="navTo('safety')">open</button></div>`:'',
     o.kyc_pending?`<div class="zrow"><b>${o.kyc_pending} KYC application${o.kyc_pending>1?'s':''} pending</b><button class="act" onclick="navTo('drivers')">review</button></div>`:'',
+    o.scheduled_rides?`<div class="zrow"><b>${o.scheduled_rides} ride${o.scheduled_rides>1?'s':''} scheduled ahead</b><button class="act" onclick="navTo('rides')">view</button></div>`:'',
     `<div class="zrow"><b>${o.riders} rider account${o.riders===1?'':'s'} on the platform</b><button class="act" onclick="navTo('riders')">view</button></div>`,
   ].join('')||'<p style="color:var(--mut);font-size:13px">All clear.</p>';
   const rides=await API.get('/api/admin/rides').catch(()=>[]);
   $('#miniRides').innerHTML=rides.slice(0,5).map(r=>`
-    <div class="zrow"><span class="mono">${r.id.slice(0,8)}</span><b style="font-weight:500">${esc(r.pickup_addr)} → ${esc(r.drop_addr)}</b>
+    <div class="zrow"><span class="mono">${r.id.slice(0,8)}</span><b style="font-weight:600">${esc(r.pickup_addr)} → ${esc(r.drop_addr)}</b>
     <span class="pill ${STP[r.status]||'mut'}">${r.status}</span></div>`).join('');
 }
-function navTo(v){ nav($(`.nv[data-v="${v}"]`)); }
 
 /* ---------- live fleet map ---------- */
 async function loadPositions(){
@@ -382,11 +396,11 @@ async function loadRides(){
     <td class="mono">${r.id.slice(0,10)}</td>
     <td>${esc(r.rider_name)}</td><td>${esc(r.driver_name||'—')}</td>
     <td style="max-width:230px">${esc(r.pickup_addr)} → ${esc(r.drop_addr)}</td>
-    <td>${EMO[r.category]||''} ${r.category}</td>
-    <td style="font-family:var(--disp)">${inr(r.fare_final??r.fare_quoted)}</td>
+    <td>${EMO[r.category]||''} ${r.type==='city'?r.category:r.type}</td>
+    <td style="font-family:var(--disp);font-weight:800">${inr(r.fare_final??r.fare_quoted)}</td>
     <td>${r.surge>1?`<span class="pill amber">${r.surge}×</span>`:'—'}</td>
     <td><span class="pill ${STP[r.status]||'mut'}">${r.status}</span></td>
-    <td style="color:var(--mut);font-size:11.5px">${timeAgo(r.requested_at)}</td></tr>`).join('')
+    <td style="color:var(--mut);font-size:11.5px">${r.status==='SCHEDULED'&&r.scheduled_at?new Date(r.scheduled_at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):timeAgo(r.requested_at)}</td></tr>`).join('')
     ||'<tr><td colspan="9" style="color:var(--mut)">No rides yet.</td></tr>';
 }
 
@@ -415,7 +429,7 @@ async function loadDrivers(){
       <td><div class="who"><span class="av">${esc(d.name.split(' ').map(w=>w[0]).join('').slice(0,2))}</span>${esc(d.name)}${d.is_bot?'<span class="micro" style="margin-left:6px">SIM</span>':''}</div></td>
       <td>${esc(d.vehicle_make||'—')} · ${esc(d.plate||'—')}</td>
       <td>★ ${(d.rating||5).toFixed(2)}</td><td>${acc}%</td>
-      <td style="font-family:var(--disp)">${inr(d.earnings_total)}</td>
+      <td style="font-family:var(--disp);font-weight:800">${inr(d.earnings_total)}</td>
       <td>${state}</td><td>${btn}</td></tr>`;
   }).join('');
 }
@@ -431,11 +445,11 @@ async function loadRiders(){
   $('#riderRows').innerHTML=rows.map(u=>`<tr>
     <td><div class="who"><span class="av">${esc(u.name.split(' ').map(w=>w[0]).join('').slice(0,2))}</span>${esc(u.name)}</div></td>
     <td class="mono">${esc(u.phone)}</td><td>${u.rides_count}</td><td>★ ${(u.rating||5).toFixed(2)}</td>
-    <td style="font-family:var(--disp)">${inr(u.wallet_balance)}</td>
-    <td style="color:var(--mut);font-size:11.5px">${timeAgo(u.created_at)}</td>
+    <td style="font-family:var(--disp);font-weight:800">${inr(u.wallet_balance)}</td>
+    <td>${(u.prime_until||0)>Date.now()?'<span class="pill gold">PRIME ✦</span>':'—'}</td>
     <td>${u.status==='blocked'?'<span class="pill red">BLOCKED</span>':'<span class="pill em">ACTIVE</span>'}</td>
     <td><button class="act ${u.status==='blocked'?'ok':'no'}" onclick="blockUser('${u.id}',${u.status!=='blocked'})">${u.status==='blocked'?'Unblock':'Block'}</button></td></tr>`).join('')
-    ||'<tr><td colspan="8" style="color:var(--mut)">No riders yet — open the rider app and sign up.</td></tr>';
+    ||'<tr><td colspan="8" style="color:var(--mut)">No riders yet — open the app and sign up.</td></tr>';
 }
 async function blockUser(id,blocked){
   try{ await API.post(`/api/admin/users/${id}/block`,{blocked}); toast(blocked?'Rider blocked':'Rider unblocked'); loadRiders(); }
@@ -466,12 +480,16 @@ async function loadRevenue(){
   $('#rvNet').textContent=inr(rv.net);
   $('#rvTrips').textContent=rv.trips;
   $('#rvPay').textContent=inr(rv.gmv-rv.net);
-  const max=Math.max(...rv.by_category.map(c=>c.gross),1);
-  $('#rvCats').innerHTML=rv.by_category.map(c=>`
-    <div class="rv-row"><b>${EMO[c.category]||''} ${c.category}</b>
-      <div class="rv-track"><i style="width:${Math.round(c.gross/max*100)}%"></i></div>
-      <span class="rv-amt">${inr(c.gross)}</span></div>`).join('')
-    ||'<p style="color:var(--mut);font-size:13px">Complete rides to see revenue.</p>';
+  const bars=(rows,el,key)=>{
+    const max=Math.max(...rows.map(c=>c.gross),1);
+    $(el).innerHTML=rows.map(c=>`
+      <div class="rv-row"><b>${EMO[c[key]]||''} ${c[key]}</b>
+        <div class="rv-track"><i style="width:${Math.round(c.gross/max*100)}%"></i></div>
+        <span class="rv-amt">${inr(c.gross)}</span></div>`).join('')
+      ||'<p style="color:var(--mut);font-size:13px">Complete rides to see revenue.</p>';
+  };
+  bars(rv.by_category,'#rvCats','category');
+  bars(rv.by_type,'#rvTypes','type');
 }
 
 /* ---------- safety ---------- */
@@ -487,6 +505,19 @@ async function loadSos(){
 }
 async function resolveSos(id){
   try{ await API.post(`/api/admin/sos/${id}/resolve`); toast('SOS resolved'); loadSos(); loadOverview(); }
+  catch(e){ toast(e.message,true); }
+}
+async function loadTickets(){
+  const rows=await API.get('/api/admin/tickets').catch(()=>[]);
+  $('#tkRows').innerHTML=rows.map(t=>`<tr>
+    <td class="mono">${t.id.slice(0,10)}</td><td>${esc(t.user_name)}</td>
+    <td>${esc(t.type.replace('_',' '))}</td><td style="max-width:260px">${esc(t.message||'—')}</td>
+    <td>${t.status==='open'?'<span class="pill amber">OPEN</span>':'<span class="pill em">RESOLVED</span>'}</td>
+    <td>${t.status==='open'?`<button class="act ok" onclick="resolveTk('${t.id}')">Resolve</button>`:''}</td></tr>`).join('')
+    ||'<tr><td colspan="6" style="color:var(--mut)">No tickets.</td></tr>';
+}
+async function resolveTk(id){
+  try{ await API.post(`/api/admin/tickets/${id}/resolve`); toast('Ticket resolved'); loadTickets(); loadOverview(); }
   catch(e){ toast(e.message,true); }
 }
 

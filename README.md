@@ -1,102 +1,106 @@
-# ⚡ RYDR — Production Ride-Hailing Platform (Ola-style)
+# ☀️ Ryder — Full-Stack Ride-Hailing Platform
 
-> **Move beautifully.** A complete, working ride-hailing product — not a mockup.
+> **Go places, joyfully.** A complete Ola-class ride-hailing product: a real backend,
+> a React Native app for riders & driver partners, and a live ops console — in one repo.
 
-RYDR is a full-stack Ola/Uber-style platform with a **zero-dependency Node.js backend**
-(real SQLite database, real matching engine, real wallet ledger) and **premium web clients**
-for every surface — designed dark, gold and emerald, like it costs money.
+Feature-parity with a production Indian ride-hailing platform (our own brand, design and code):
+slab-based fare engine, surge & night pricing, hourly rentals, outstation, scheduled rides,
+Prime membership, referrals, wallet ledger, KYC ops, SOS desk — all implemented, all working.
 
-<p align="center"><i>Rider · Driver · Admin · Landing — all live against one real API.</i></p>
+**Design**: warm porcelain light theme — ivory `#F6F4EF`, deep emerald `#0B8457`, soft gold
+`#AE8A4A`, Manrope + Fraunces italics. Premium without the black.
 
-## 🚀 Run it (no install, no build)
+## 🚀 Run it
 
-Requires Node.js ≥ 22.5 (uses built-in `node:sqlite`). There are **zero npm dependencies**.
+**1. The server** (Node ≥ 22.5, zero npm dependencies — uses built-in `node:sqlite`):
 
 ```bash
 npm start
 ```
 
-| Surface | URL | Sign in with |
+**2. The React Native app** (Expo — rider + driver partner in one codebase):
+
+```bash
+cd app-mobile
+npm install
+npx expo start
+```
+
+Press `w` for the browser, scan the QR with Expo Go for a phone (set your LAN IP in
+[`app-mobile/src/api.js`](app-mobile/src/api.js)), or `a` for the Android emulator.
+
+| Surface | Where | Sign in |
 |---|---|---|
-| 🌐 Landing | http://localhost:4321 | — |
-| 📱 Rider app | http://localhost:4321/rider | any phone number (OTP shown on screen) |
-| 🛞 Driver app | http://localhost:4321/driver | `+919000000010` (Ramesh, verified) or any new number (pending KYC) |
+| 📱 Rider app | Expo → "I need a ride" | any phone number (OTP shown on screen) |
+| 🛞 Driver app | Expo → "I drive" | `+919000000010` (verified) or any new number (pending KYC) |
 | 🧠 Ops console | http://localhost:4321/admin | `+919999900000` |
+| 🌐 Landing | http://localhost:4321 | — |
 
-> **Demo notes** — OTPs are displayed in the UI because no SMS gateway is wired (the code
-> path is marked for Twilio Verify). All three roles share `localStorage`, so use separate
-> browser profiles/incognito windows to run rider + driver + admin simultaneously.
-> A simulated fleet of 12 bot drivers accepts rides, drives to pickup, and completes trips
-> (`RYDR_TIME_SCALE` env var controls how fast they move; default 18× real time).
+> A simulated fleet of 14 bot drivers accepts rides, drives to pickup and completes trips
+> (`RYDR_TIME_SCALE` env var controls speed, default 18×). OTPs display in-app because no
+> SMS gateway is wired — the Twilio hook is marked in `server/routes.js`.
 
-## ✅ What actually works (end to end)
+## 🧮 The fare engine (`server/pricing.js`)
 
-- **Auth** — phone + OTP (rate-limited, expiring), HMAC-signed tokens, roles (rider/driver/admin)
-- **Booking** — place search, upfront fare estimates for 5 categories, promo codes, wallet/cash
-- **Matching** — nearest-driver dispatch over expanding radius, 15s offer cascade across 3 waves
-- **Ride state machine** — `SEARCHING → ACCEPTED → ARRIVED → (OTP) ONGOING → COMPLETED`, plus cancellation with late-fee logic and expiry
-- **Live tracking** — driver GPS streamed to the rider & admin over SSE, drawn on a stylised map
-- **Wallet** — real ledger (topups, ride charges, driver earnings at 78%, tips, promo credits)
-- **Pricing** — base + per-km + per-min + GST, per-zone surge (admin-controlled, capped 3×)
-- **Ratings** — 5-star with tags, aggregates update the driver's rating
-- **Driver app** — online toggle (KYC-gated), offer accept/decline with countdown, arrive → OTP verify → complete flow, earnings summary
-- **Admin console** — live KPIs, SSE fleet map, rides ledger, KYC approve/reject/suspend, rider block/unblock, surge sliders that change real prices, revenue analytics, SOS desk, audit log
-- **Safety** — SOS events raised from an active ride, alerting connected admins in real time
+City fares follow the full industry structure, and the app shows this exact breakdown
+before every booking:
+
+```
+fare = base (covers first N km)
+     + slab-1 per-km  (shorter hops, higher rate)
+     + slab-2 per-km  (beyond ~10–12 km, lower rate)
+     + per-minute ride-time charge
+  × surge (zone-based, admin-dialled, capped 3×)
+  × 1.25 night multiplier (11pm–5am)
+  → floor at minimum fare
+     + booking fee
+     + waiting charge (per min beyond 5 free min after arrival)
+     − Prime discount (10%, and Prime waives surge entirely)
+     − promo discount
+     + 5% GST
+```
+
+Plus two more pricing models:
+- **Rentals** — 1/2/4/8/12-hour packages (10 km/hr included), per-category hourly rates, extra-km & extra-min rates
+- **Outstation** — per-km with driver allowance/day and minimum-km billing (250–300 km/day), one-way vs round trip
+
+## ✅ Feature parity checklist
+
+**Rider** — phone-OTP auth · welcome credit · place search & saved places (home/work) ·
+six vehicle classes · upfront fares with tap-to-view breakdown · promo codes · wallet or cash ·
+hourly rentals · outstation (one-way/round) · scheduled rides (auto-dispatched at T-2min) ·
+live driver tracking · ride OTP · SOS with emergency contacts · trip share · cancel with
+late-fee logic · rate & tip · Ryder Prime (₹149/mo: zero surge + 10% off) · refer & earn ₹100 ·
+support tickets · full trip history
+
+**Driver partner** — separate sign-in mode · KYC-gated onboarding · online/offline ·
+offer cards with countdown & surge flag · arrive → OTP verify → complete flow ·
+earnings (today/week), 78% share, instant payout · acceptance rate · trip insurance
+
+**Admin ops** — live KPI dashboard · SSE fleet map · rides ledger across all service types ·
+KYC approve/reject/suspend/reinstate · rider block/Prime view · surge sliders (live prices) ·
+revenue by category & service · SOS desk · support-ticket desk · audit log
 
 ## 🗂️ Repository layout
 
 ```
-server/            zero-dependency Node.js backend
-  index.js         HTTP server (static + API + SSE)
-  db.js            node:sqlite schema + seed (zones, promos, bot fleet)
-  routes.js        REST API — auth, rider, driver, admin
-  rides.js         state machine, matching cascade, wallet ledger
-  pricing.js       rate cards, surge, fare estimation, promo engine
-  sim.js           bot driver fleet (accepts, drives, completes)
-  events.js        SSE hub (per-user channels + admin firehose)
-  lib.js           tokens, geo math, http helpers
-web/               premium clients (no framework, no build step)
-  index.html       landing
-  rider.html       rider app (SPA)
-  driver.html      partner app (SPA)
-  admin.html       ops console (SPA)
-  assets/          design system + client SDK
-docs/              product docs (features, architecture, roadmap)
-mockups/           phase-1 static mockups (superseded by web/)
-data/              SQLite database (gitignored — delete to reseed)
+server/         zero-dependency Node.js backend (auth, matching, fare engine,
+                state machine, wallet, scheduler, bot-fleet sim, SSE)
+app-mobile/     React Native (Expo) app — rider + driver partner
+  src/theme.js    light design tokens
+  src/api.js      REST client + polling (works on web, Android, iOS)
+  src/ui.js       component kit (buttons, map canvas, radar, OTP, toasts)
+  src/screens/    auth · rider (8 screens) · driver (4 screens)
+web/            landing page + ops console (light theme, SSE realtime)
+docs/           feature spec · architecture · roadmap
+mockups/        phase-1 static mockups (history)
 ```
 
-## 🔌 API surface (summary)
+## 🏭 To real production
 
-```
-POST /api/auth/otp            /api/auth/verify
-GET  /api/me                  /api/events (SSE)         /api/places?q=
-POST /api/fares/estimate
-POST /api/rides               GET /api/rides[/active|/:id]
-POST /api/rides/:id/cancel|rate|tip|sos
-GET  /api/wallet              POST /api/wallet/topup
-POST /api/driver/status|ping  GET /api/driver/offer|summary
-POST /api/driver/rides/:id/accept|decline|arrived|start|complete
-GET  /api/admin/overview|rides|drivers|riders|zones|revenue|positions|sos|audit
-POST /api/admin/drivers/:id/kyc   /api/admin/users/:id/block
-POST /api/admin/zones/:id/surge   /api/admin/sos/:id/resolve
-```
-
-## 🎨 Design system
-
-Obsidian `#08090B` · porcelain ink · champagne gold `#D9C08A` · emerald `#1FCE8B` ·
-Clash Display + Satoshi (Fontshare) with Instrument Serif italics · hairline borders ·
-film grain · slow reveals. Tokens live in [`web/assets/base.css`](web/assets/base.css).
-
-## 🏭 Taking it to real production
-
-The deliberate gaps between this build and a public launch:
-
-1. **SMS** — wire `routes.js` OTP path to Twilio Verify / MSG91 (marked with comments)
-2. **Payments** — replace demo topup with Razorpay/Stripe order + webhook confirmation
-3. **Maps** — swap the stylised canvas for Google Maps / Mapbox tiles + real routing ETAs
-4. **Scale-out** — move offer timers & SSE fan-out to Redis pub/sub when running >1 instance
-5. **Hardening** — HTTPS, secret rotation, rate limiting on all endpoints, backups
+The deliberate, marked gaps: Twilio/MSG91 for OTP SMS · Razorpay order+webhook for topups ·
+Google Maps/Mapbox tiles & routing in place of the stylised canvas · Redis for offer timers +
+SSE fan-out beyond one instance · HTTPS, rate limits, backups.
 
 Full specs: [docs/FEATURES.md](docs/FEATURES.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/ROADMAP.md](docs/ROADMAP.md)
 

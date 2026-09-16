@@ -3,160 +3,161 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RYDR — Move beautifully.</title>
-<meta name="description" content="RYDR is the premium ride-hailing platform. Bikes, autos, sedans & EVs — summoned in seconds, priced upfront, driven by the city's best.">
+<title>Ryder — Go places, joyfully.</title>
+<meta name="description" content="Ryder is the ride-hailing platform with heart. Bikes, autos, sedans, SUVs & EVs — upfront fares, hourly rentals, outstation trips, and a fleet you can trust.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@1,500;1,600&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/base.css">
 <style>
 .wrap{max-width:1200px;margin:0 auto;padding:0 28px;position:relative;z-index:1}
 
+/* soft ambient washes */
+.wash{position:fixed;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0;opacity:.5}
+.wash.a{width:560px;height:560px;background:#DDEEE3;top:-180px;right:-120px}
+.wash.b{width:480px;height:480px;background:#F3E8D2;bottom:-160px;left:-140px}
+
 /* nav */
-nav{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);background:rgba(8,9,11,.65);border-bottom:1px solid var(--hair)}
+nav{position:sticky;top:0;z-index:60;backdrop-filter:blur(16px);background:rgba(246,244,239,.8);border-bottom:1px solid var(--hair)}
 .nav-in{display:flex;align-items:center;justify-content:space-between;height:76px}
-.logo{font-family:var(--disp);font-weight:600;font-size:24px;letter-spacing:.02em;text-decoration:none}
-.logo i{font-style:normal;color:var(--gold)}
-.nav-links{display:flex;gap:34px;align-items:center}
-.nav-links a{color:var(--mut);text-decoration:none;font-size:13.5px;font-weight:500;transition:color .25s;letter-spacing:.02em}
+.logo{font-family:var(--disp);font-weight:800;font-size:24px;letter-spacing:-.5px;text-decoration:none;display:flex;align-items:center;gap:10px}
+.logo .mark{width:36px;height:36px;border-radius:12px;background:var(--emerald);color:#fff;display:grid;place-items:center;font-size:17px}
+.nav-links{display:flex;gap:32px;align-items:center}
+.nav-links a{color:var(--mut);text-decoration:none;font-size:13.5px;font-weight:700;transition:color .2s}
 .nav-links a:hover{color:var(--ink)}
 
 /* hero */
-.hero{padding:130px 0 90px;text-align:center;position:relative}
-.hero .micro{margin-bottom:28px;display:inline-flex;align-items:center;gap:10px}
-.hero .micro::before,.hero .micro::after{content:"";width:36px;height:1px;background:var(--hair-hi);display:inline-block}
-h1{font-family:var(--disp);font-weight:500;font-size:clamp(52px,8vw,104px);letter-spacing:-.035em;line-height:.98}
-h1 .serif{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--gold);letter-spacing:-.01em}
-.hero .sub{color:var(--mut);font-size:17px;line-height:1.7;max-width:520px;margin:32px auto 44px}
-.hero-cta{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
-.hero-note{margin-top:26px;font-size:12.5px;color:var(--mut);letter-spacing:.04em}
-.hero-note b{color:var(--ink-dim);font-weight:500}
+.hero{padding:110px 0 80px;display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center}
+h1{font-family:var(--disp);font-weight:800;font-size:clamp(46px,6.5vw,82px);letter-spacing:-.035em;line-height:1.0}
+h1 .serif{font-family:var(--serif);font-style:italic;font-weight:600;color:var(--emerald)}
+.hero .sub{color:var(--mut);font-size:17px;line-height:1.75;max-width:480px;margin:26px 0 36px;font-weight:600}
+.hero-cta{display:flex;gap:14px;flex-wrap:wrap}
+.hero-note{margin-top:24px;font-size:12.5px;color:var(--mut);font-weight:600}
+.hero-note b{color:var(--ink-dim)}
+
+/* hero visual: light map card */
+.hero-map{border-radius:32px;overflow:hidden;border:1px solid var(--hair);box-shadow:var(--shadow-float);height:460px;position:relative}
+.hv-car{position:absolute;z-index:3;width:38px;height:38px;border-radius:50%;background:#fff;
+  border:1px solid var(--hair-hi);display:grid;place-items:center;font-size:16px;transition:all 2.4s linear;box-shadow:var(--shadow-card)}
+.hv-badge{position:absolute;z-index:5;background:#fff;border:1px solid var(--hair);border-radius:999px;
+  padding:9px 18px;font-size:12.5px;font-weight:800;box-shadow:var(--shadow-card)}
+.hv-fare{position:absolute;z-index:5;right:22px;bottom:22px;background:var(--ink);color:#fff;border-radius:20px;
+  padding:16px 20px;box-shadow:var(--shadow-float)}
+.hv-fare b{font-family:var(--disp);font-size:22px;display:block}
+.hv-fare span{font-size:11px;opacity:.7;letter-spacing:.1em}
 
 /* stat rail */
-.rail{border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);display:grid;grid-template-columns:repeat(4,1fr)}
+.rail{border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);display:grid;grid-template-columns:repeat(4,1fr);background:var(--bg2)}
 .rail>div{padding:34px 20px;text-align:center;border-right:1px solid var(--hair)}
 .rail>div:last-child{border-right:none}
-.rail b{font-family:var(--disp);font-size:34px;font-weight:500;letter-spacing:-.02em;display:block}
-.rail b i{font-style:normal;color:var(--gold)}
-.rail span{font-size:11.5px;color:var(--mut);letter-spacing:.16em;text-transform:uppercase;margin-top:8px;display:block}
-
-/* live map showcase */
-.showcase{margin:100px 0;border:1px solid var(--hair);border-radius:32px;overflow:hidden;position:relative;height:440px}
-.showcase .mapsurface{position:absolute;inset:0}
-.showcase .caption{position:absolute;left:34px;bottom:30px;z-index:5}
-.showcase .caption b{font-family:var(--disp);font-size:22px;font-weight:500;display:block;margin-top:8px}
-.sc-car{position:absolute;z-index:3;width:34px;height:34px;border-radius:50%;background:rgba(16,19,22,.9);
-  border:1px solid var(--hair-hi);display:grid;place-items:center;font-size:15px;transition:all 2.4s linear;
-  box-shadow:0 8px 30px rgba(0,0,0,.5)}
-.sc-car.gold{border-color:rgba(217,192,138,.5);box-shadow:0 0 24px rgba(217,192,138,.15)}
-.sc-live{position:absolute;top:26px;right:28px;z-index:5}
+.rail b{font-family:var(--disp);font-size:34px;font-weight:800;letter-spacing:-.02em;display:block}
+.rail b i{font-style:normal;color:var(--emerald)}
+.rail span{font-size:11px;color:var(--mut);letter-spacing:.16em;text-transform:uppercase;margin-top:8px;display:block;font-weight:700}
 
 /* sections */
-section{padding:110px 0}
-.sec-head{max-width:640px;margin-bottom:64px}
-.sec-head.center{margin-inline:auto;text-align:center}
-h2{font-family:var(--disp);font-weight:500;font-size:clamp(34px,4.6vw,54px);letter-spacing:-.03em;line-height:1.05;margin:18px 0}
-h2 .serif{font-family:var(--serif);font-style:italic;color:var(--gold)}
-.lead{color:var(--mut);font-size:16px;line-height:1.75}
+section{padding:100px 0}
+.sec-head{max-width:640px;margin-bottom:56px}
+h2{font-family:var(--disp);font-weight:800;font-size:clamp(32px,4.4vw,50px);letter-spacing:-.03em;line-height:1.08;margin:16px 0}
+h2 .serif{font-family:var(--serif);font-style:italic;font-weight:600;color:var(--emerald)}
+.lead{color:var(--mut);font-size:16px;line-height:1.75;font-weight:600}
 
-/* fleet — refined ledger rows */
+/* services */
+.services{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.svc{padding:30px;transition:all .3s;cursor:default}
+.svc:hover{transform:translateY(-5px);box-shadow:var(--shadow-float)}
+.svc .ic{width:52px;height:52px;border-radius:16px;background:var(--emerald-dim);display:grid;place-items:center;font-size:22px;margin-bottom:18px}
+.svc h3{font-family:var(--disp);font-size:19px;font-weight:800;margin-bottom:8px}
+.svc p{color:var(--mut);font-size:13.5px;line-height:1.65;font-weight:600}
+
+/* fleet ledger */
 .fleet{border-top:1px solid var(--hair)}
-.fl-row{display:grid;grid-template-columns:70px 1.2fr 2fr auto;gap:26px;align-items:center;
-  padding:34px 10px;border-bottom:1px solid var(--hair);transition:all .35s;cursor:default}
-.fl-row:hover{background:rgba(255,255,255,.018);padding-left:22px}
-.fl-row .idx{font-family:var(--serif);font-style:italic;font-size:26px;color:var(--mut)}
-.fl-row h3{font-family:var(--disp);font-weight:500;font-size:24px;letter-spacing:-.02em}
-.fl-row h3 small{font-size:12px;color:var(--mut);font-family:var(--ui);letter-spacing:.14em;display:block;margin-top:4px;text-transform:uppercase}
-.fl-row p{color:var(--mut);font-size:14px;line-height:1.65}
-.fl-row .fare{font-family:var(--disp);font-size:19px;color:var(--gold);white-space:nowrap}
-.fl-row .fare small{display:block;font-size:11px;color:var(--mut);font-family:var(--ui);letter-spacing:.1em;margin-top:3px}
+.fl-row{display:grid;grid-template-columns:64px 1.1fr 2fr auto;gap:26px;align-items:center;
+  padding:30px 12px;border-bottom:1px solid var(--hair);transition:all .3s}
+.fl-row:hover{background:var(--bg2);padding-left:24px}
+.fl-row .em{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:24px;background:var(--gold-dim)}
+.fl-row h3{font-family:var(--disp);font-weight:800;font-size:21px}
+.fl-row h3 small{font-size:11px;color:var(--mut);letter-spacing:.14em;display:block;margin-top:4px;text-transform:uppercase;font-weight:700}
+.fl-row p{color:var(--mut);font-size:14px;line-height:1.6;font-weight:600}
+.fl-row .fare{font-family:var(--disp);font-weight:800;font-size:18px;color:var(--emerald);white-space:nowrap;text-align:right}
+.fl-row .fare small{display:block;font-size:10.5px;color:var(--mut);letter-spacing:.1em;font-weight:700}
 
-/* pillars */
-.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-.pillar{padding:38px 32px;position:relative;overflow:hidden}
-.pillar .num{font-family:var(--serif);font-style:italic;font-size:52px;color:rgba(217,192,138,.22);line-height:1}
-.pillar h3{font-family:var(--disp);font-weight:500;font-size:20px;margin:22px 0 12px;letter-spacing:-.01em}
-.pillar p{color:var(--mut);font-size:14px;line-height:1.7}
+/* fare math band */
+.mathband{border-radius:32px;background:var(--ink);color:#F3F1EA;padding:64px;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.mathband h2{color:#fff}
+.mathband .lead{color:#B9C2BD}
+.receipt{background:#fff;color:var(--ink);border-radius:22px;padding:28px;box-shadow:var(--shadow-float);transform:rotate(1.5deg)}
+.receipt .row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--hair-hi);font-size:13.5px;font-weight:600}
+.receipt .row span:last-child{font-family:var(--disp);font-weight:800}
+.receipt .total{border:none;padding-top:14px;font-size:16px}
+.receipt .total span:last-child{color:var(--emerald);font-size:22px}
 
-/* membership band */
-.band{border-radius:36px;border:1px solid rgba(217,192,138,.22);position:relative;overflow:hidden;
-  background:linear-gradient(130deg,rgba(217,192,138,.09),rgba(13,122,84,.06) 55%,transparent);
-  padding:80px 70px;display:grid;grid-template-columns:1.3fr 1fr;gap:60px;align-items:center}
-.band::after{content:"RYDR ONE";position:absolute;right:-30px;bottom:-38px;font-family:var(--disp);
-  font-size:150px;font-weight:600;letter-spacing:-.04em;color:rgba(255,255,255,.022);white-space:nowrap}
-.band ul{list-style:none;margin-top:30px}
-.band li{padding:13px 0;border-bottom:1px solid var(--hair);color:var(--ink-dim);font-size:15px;display:flex;gap:14px;align-items:baseline}
-.band li:last-child{border:none}
-.band li::before{content:"—";color:var(--gold)}
-.one-card{aspect-ratio:1.58;border-radius:22px;position:relative;overflow:hidden;
-  background:linear-gradient(135deg,#15130d,#0c0d0a 60%,#101208);border:1px solid rgba(217,192,138,.35);
-  box-shadow:0 40px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(239,220,174,.15);
-  padding:28px;display:flex;flex-direction:column;justify-content:space-between;transform:rotate(-3deg);transition:transform .5s}
-.one-card:hover{transform:rotate(0deg) scale(1.02)}
-.one-card .top{display:flex;justify-content:space-between;align-items:start}
-.one-card .chip{width:40px;height:30px;border-radius:6px;background:linear-gradient(135deg,var(--gold),#9a8354);opacity:.85}
-.one-card .brand{font-family:var(--disp);font-weight:600;font-size:19px;letter-spacing:.04em;color:var(--gold-hi)}
-.one-card .no{font-family:var(--disp);letter-spacing:.28em;color:var(--ink-dim);font-size:14px}
-.one-card .holder{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.2em;color:var(--mut);text-transform:uppercase}
-
-/* drive band */
-.drive{display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:center}
-.d-stat{border-left:1px solid var(--hair-hi);padding-left:26px;margin-bottom:34px}
-.d-stat b{font-family:var(--disp);font-size:42px;font-weight:500;letter-spacing:-.02em;display:block}
-.d-stat b i{font-style:normal;color:var(--emerald)}
-.d-stat span{color:var(--mut);font-size:13px;letter-spacing:.08em}
+/* prime */
+.prime{border-radius:32px;border:1.5px solid #E8DCC0;background:linear-gradient(130deg,#FDF8EE,#F4EEDF);padding:64px;display:grid;grid-template-columns:1.2fr .8fr;gap:50px;align-items:center}
+.prime ul{list-style:none;margin-top:24px}
+.prime li{padding:12px 0;border-bottom:1px solid #EBE2CD;font-size:15px;font-weight:600;color:var(--ink-dim)}
+.prime li::before{content:"✦  ";color:var(--gold)}
+.prime-card{aspect-ratio:1.58;border-radius:22px;background:linear-gradient(135deg,#20221C,#33301F);color:#EFDCAE;
+  padding:26px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:var(--shadow-float);transform:rotate(-2.5deg);transition:transform .4s}
+.prime-card:hover{transform:rotate(0) scale(1.02)}
+.prime-card .brand{font-family:var(--disp);font-weight:800;font-size:18px;letter-spacing:.06em}
+.prime-card .no{font-family:var(--disp);letter-spacing:.3em;font-size:14px;opacity:.85}
+.prime-card .holder{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.2em;opacity:.6;text-transform:uppercase;font-weight:700}
 
 /* footer */
-footer{border-top:1px solid var(--hair);padding:70px 0 44px;position:relative;z-index:1}
+footer{border-top:1px solid var(--hair);padding:64px 0 40px;background:var(--bg2)}
 .f-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px}
-.f-grid h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);margin-bottom:20px;font-weight:600}
-.f-grid a{display:block;color:var(--ink-dim);text-decoration:none;font-size:13.5px;padding:6px 0;transition:color .2s}
-.f-grid a:hover{color:var(--gold)}
-.f-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:56px;padding-top:26px;border-top:1px solid var(--hair);color:var(--mut);font-size:12px;letter-spacing:.03em}
+.f-grid h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);margin-bottom:18px;font-weight:800}
+.f-grid a{display:block;color:var(--ink-dim);text-decoration:none;font-size:13.5px;padding:6px 0;font-weight:600}
+.f-grid a:hover{color:var(--emerald)}
+.f-bottom{display:flex;justify-content:space-between;margin-top:52px;padding-top:24px;border-top:1px solid var(--hair);color:var(--mut);font-size:12px;font-weight:700;letter-spacing:.05em}
 
-@media(max-width:900px){
+@media(max-width:960px){
+  .hero{grid-template-columns:1fr;padding-top:60px}
+  .hero-map{height:340px}
   .rail{grid-template-columns:1fr 1fr}
-  .rail>div:nth-child(2n){border-right:none}
-  .fl-row{grid-template-columns:40px 1fr auto}
+  .services{grid-template-columns:1fr 1fr}
+  .fl-row{grid-template-columns:52px 1fr auto}
   .fl-row p{display:none}
-  .pillars{grid-template-columns:1fr}
-  .band{grid-template-columns:1fr;padding:48px 32px}
-  .drive{grid-template-columns:1fr}
+  .mathband,.prime{grid-template-columns:1fr;padding:40px 30px}
   .f-grid{grid-template-columns:1fr 1fr}
   .nav-links a:not(.btn){display:none}
 }
+@media(max-width:560px){.services{grid-template-columns:1fr}.rail{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
-<div class="grain"></div>
-<div class="aura gold" style="width:600px;height:600px;top:-200px;left:50%;transform:translateX(-50%)"></div>
-<div class="aura em" style="width:500px;height:500px;bottom:10%;left:-180px"></div>
-<div class="aura vi" style="width:400px;height:400px;top:45%;right:-150px"></div>
+<div class="wash a"></div><div class="wash b"></div>
 
 <nav>
   <div class="wrap nav-in">
-    <a class="logo" href="/">RYD<i>R</i></a>
+    <a class="logo" href="/"><span class="mark">R</span>Ryder</a>
     <div class="nav-links">
+      <a href="#services">Services</a>
       <a href="#fleet">Fleet</a>
-      <a href="#pillars">Standards</a>
-      <a href="#one">RYDR One</a>
-      <a href="#drive">Partners</a>
+      <a href="#fares">Fares</a>
+      <a href="#prime">Prime</a>
       <a href="/admin" style="opacity:.6">Console</a>
-      <a class="btn btn-gold sm" href="/rider" style="padding:11px 22px">Open app</a>
+      <a class="btn btn-em sm" href="#app">Get the app</a>
     </div>
   </div>
 </nav>
 
 <header class="wrap hero">
-  <span class="micro gold">EST. 2026 · 24 CITIES · LIVE NOW</span>
-  <h1>Move<br><span class="serif">beautifully.</span></h1>
-  <p class="sub">The ride, perfected. Upfront fares that never flinch, drivers held to a higher bar, and a car that arrives like it was always meant to.</p>
-  <div class="hero-cta">
-    <a class="btn btn-gold" href="/rider">Request a ride</a>
-    <a class="btn btn-dark" href="/driver">Drive with RYDR</a>
+  <div>
+    <span class="micro gold">LIVE IN 24 CITIES · 12M RIDES</span>
+    <h1 style="margin-top:20px">Go places,<br><span class="serif">joyfully.</span></h1>
+    <p class="sub">Bikes, autos, sedans, SUVs & EVs — priced upfront to the rupee, matched in seconds, driven by people we'd ride with ourselves.</p>
+    <div class="hero-cta">
+      <a class="btn btn-em" href="#app">Download the app</a>
+      <a class="btn btn-ghost" href="#drive">Drive with Ryder</a>
+    </div>
+    <p class="hero-note">This repo runs the <b>real product</b> — a live matching engine, wallet & fare system behind a React Native app. Not a mockup.</p>
   </div>
-  <p class="hero-note">This is the <b>live product</b> — real accounts, real matching engine, real wallet. No mockups.</p>
+  <div class="hero-map mapsurface" id="heroMap">
+    <span class="hv-badge" style="top:20px;left:20px">📍 HSR Layout, Sector 2</span>
+    <div class="hv-fare"><span>AUTO · UPFRONT</span><b>₹215</b></div>
+    <div id="hvCars"></div>
+  </div>
 </header>
 
 <div class="wrap">
@@ -166,84 +167,89 @@ footer{border-top:1px solid var(--hair);padding:70px 0 44px;position:relative;z-
     <div><b>2:40</b><span>median pickup</span></div>
     <div><b>0<i>%</i></b><span>fare surprises</span></div>
   </div>
-
-  <!-- live showcase -->
-  <div class="showcase reveal">
-    <div class="mapsurface"></div>
-    <span class="sc-live pill em"><span class="dot live"></span>LIVE NETWORK</span>
-    <div class="caption">
-      <span class="micro">BENGALURU · SOUTH ZONE</span>
-      <b id="scCount">— vehicles in motion</b>
-    </div>
-    <div id="scCars"></div>
-  </div>
 </div>
 
-<!-- fleet -->
-<section class="wrap" id="fleet">
+<!-- services -->
+<section class="wrap" id="services">
   <div class="sec-head reveal">
-    <span class="micro gold">THE FLEET</span>
-    <h2>Five ways to <span class="serif">arrive.</span></h2>
-    <p class="lead">Every tier holds the same standard — inspected vehicles, verified partners, upfront pricing. Choose by mood, not by compromise.</p>
+    <span class="micro em">EVERY KIND OF JOURNEY</span>
+    <h2>One app, <span class="serif">four superpowers.</span></h2>
+  </div>
+  <div class="services">
+    <div class="card svc reveal"><span class="ic">🚕</span><h3>City rides</h3><p>Point to point across town — six vehicle classes, one honest upfront price.</p></div>
+    <div class="card svc reveal"><span class="ic">⏱</span><h3>Hourly rentals</h3><p>1 to 12 hours, the car and driver stay with you. Errands, weddings, shoot days.</p></div>
+    <div class="card svc reveal"><span class="ic">🛣</span><h3>Outstation</h3><p>One-way or round trips to other cities, with transparent per-km billing.</p></div>
+    <div class="card svc reveal"><span class="ic">🗓</span><h3>Scheduled</h3><p>Book up to 7 days ahead. We dispatch a driver before you've tied your shoes.</p></div>
+  </div>
+</section>
+
+<!-- fleet -->
+<section class="wrap" id="fleet" style="padding-top:20px">
+  <div class="sec-head reveal">
+    <span class="micro em">THE FLEET</span>
+    <h2>Six ways to <span class="serif">arrive.</span></h2>
   </div>
   <div class="fleet reveal">
-    <div class="fl-row"><span class="idx">01</span><h3>Bike<small>solo · fastest</small></h3><p>A helmet, a clear lane, and the shortest line between you and there. The city's traffic becomes a rumour.</p><span class="fare">₹6 / km<small>from</small></span></div>
-    <div class="fl-row"><span class="idx">02</span><h3>Auto<small>3 seats · the classic</small></h3><p>The three-wheeled institution, elevated — metered honestly, matched instantly, arriving warmly.</p><span class="fare">₹9 / km<small>from</small></span></div>
-    <div class="fl-row"><span class="idx">03</span><h3>Mini<small>4 seats · everyday</small></h3><p>A compact, air-conditioned hatchback for the daily choreography of the city. Quietly dependable.</p><span class="fare">₹12 / km<small>from</small></span></div>
-    <div class="fl-row"><span class="idx">04</span><h3>Prime<small>4 seats · top rated</small></h3><p>Sedans driven by the top decile of our fleet. Extra legroom, quiet mode on request, doors that close with a thud.</p><span class="fare">₹16 / km<small>from</small></span></div>
-    <div class="fl-row"><span class="idx">05</span><h3>EV<small>4 seats · zero emission</small></h3><p>Electric, silent, and guilt-free. The future gliding to your doorstep with nothing to apologise for.</p><span class="fare">₹13 / km<small>from</small></span></div>
+    <div class="fl-row"><span class="em">🏍</span><h3>Bike<small>solo · fastest</small></h3><p>A helmet and the shortest line between you and there.</p><span class="fare">₹7 / km<small>+ ₹20 base</small></span></div>
+    <div class="fl-row"><span class="em">🛺</span><h3>Auto<small>3 seats · the classic</small></h3><p>The three-wheeled institution — metered honestly, matched instantly.</p><span class="fare">₹10 / km<small>+ ₹30 base</small></span></div>
+    <div class="fl-row"><span class="em">🚗</span><h3>Mini<small>4 seats · everyday</small></h3><p>Compact AC hatchbacks for the daily choreography of the city.</p><span class="fare">₹14 / km<small>+ ₹50 base</small></span></div>
+    <div class="fl-row"><span class="em">🚘</span><h3>Prime Sedan<small>4 seats · top rated</small></h3><p>Sedans driven by the top decile of our fleet. Quiet mode on request.</p><span class="fare">₹18 / km<small>+ ₹80 base</small></span></div>
+    <div class="fl-row"><span class="em">🚙</span><h3>Prime SUV<small>6 seats · the squad</small></h3><p>Room for everyone and the luggage they swore they wouldn't bring.</p><span class="fare">₹23 / km<small>+ ₹110 base</small></span></div>
+    <div class="fl-row"><span class="em">⚡</span><h3>EV<small>4 seats · zero emission</small></h3><p>Electric and silent. The future, gliding to your doorstep.</p><span class="fare">₹15 / km<small>+ ₹55 base</small></span></div>
   </div>
 </section>
 
-<!-- pillars -->
-<section class="wrap" id="pillars">
-  <div class="sec-head reveal">
-    <span class="micro gold">THE STANDARD</span>
-    <h2>Details are <span class="serif">the product.</span></h2>
-  </div>
-  <div class="pillars">
-    <div class="card pillar reveal"><span class="num">i.</span><h3>The price is the price</h3><p>Quoted before you book, honoured after you arrive. Surge is capped, transparent, and shown to you — never smuggled into the receipt.</p></div>
-    <div class="card pillar reveal"><span class="num">ii.</span><h3>Safety, engineered in</h3><p>OTP-verified starts, masked calls, live trip sharing and a one-touch SOS wired to a 24/7 response desk. Every ride, without exception.</p></div>
-    <div class="card pillar reveal"><span class="num">iii.</span><h3>A fleet worth trusting</h3><p>Every partner passes identity, licence and background verification. Vehicles are inspected; ratings are earned, not assumed.</p></div>
+<!-- fare math -->
+<section class="wrap" id="fares">
+  <div class="mathband reveal">
+    <div>
+      <span class="micro" style="color:#D9C08A">HOW THE FARE WORKS</span>
+      <h2>Every rupee, <span class="serif" style="color:#7FD4AE">explained.</span></h2>
+      <p class="lead" style="margin-top:14px">Base fare covers the first kilometres, then two per-km slabs, a per-minute ride charge and a small booking fee. Surge is capped at 3× and always shown. Night rides (11pm–5am) carry a 1.25× on distance & time. Waiting past 5 minutes is billed per minute. Prime members skip surge entirely and save 10%. GST on top — and that's it. The app shows this exact breakdown before you book.</p>
+    </div>
+    <div class="receipt">
+      <div class="row"><span>Base fare (first 1.5 km)</span><span>₹30</span></div>
+      <div class="row"><span>Distance · 13.2 km slabbed</span><span>₹127</span></div>
+      <div class="row"><span>Ride time · 40 min</span><span>₹40</span></div>
+      <div class="row"><span>Booking fee</span><span>₹8</span></div>
+      <div class="row"><span>Surge</span><span>—</span></div>
+      <div class="row"><span>GST (5%)</span><span>₹10</span></div>
+      <div class="row total"><span>You pay</span><span>₹215</span></div>
+    </div>
   </div>
 </section>
 
-<!-- membership -->
-<section class="wrap" id="one">
-  <div class="band reveal">
+<!-- prime -->
+<section class="wrap" id="prime">
+  <div class="prime reveal">
     <div>
       <span class="micro gold">MEMBERSHIP</span>
-      <h2 style="margin-top:14px">RYDR <span class="serif">One.</span></h2>
-      <p class="lead">One membership. Every ride, elevated.</p>
+      <h2>Ryder <span class="serif" style="color:var(--gold)">Prime.</span></h2>
+      <p class="lead">₹149 a month. Every ride, upgraded.</p>
       <ul>
-        <li>Zero surge, forever — members ride at base fare in any weather</li>
+        <li>Zero surge, forever — Prime rides at base pricing in any weather</li>
+        <li>10% off every fare, on every service</li>
         <li>Priority matching — the nearest car is yours first</li>
-        <li>10% off every fare, on every tier</li>
-        <li>Cancellation grace, doubled</li>
+        <li>Doubled cancellation grace</li>
       </ul>
-      <a class="btn btn-gold" style="margin-top:34px" href="/rider">Join for ₹149 / month</a>
     </div>
-    <div class="one-card">
-      <div class="top"><span class="brand">RYDR ONE</span><span class="chip"></span></div>
-      <div class="no">8412 &nbsp;77 &nbsp;0001</div>
+    <div class="prime-card">
+      <div style="display:flex;justify-content:space-between;align-items:start"><span class="brand">RYDER PRIME</span><span>✦</span></div>
+      <div class="no">8412 · 77 · 0001</div>
       <div class="holder"><span>Member</span><span>Since 2026</span></div>
     </div>
   </div>
 </section>
 
-<!-- drive -->
-<section class="wrap" id="drive">
-  <div class="drive">
-    <div class="reveal">
-      <span class="micro em">FOR PARTNERS</span>
-      <h2>Own the <span class="serif">road.</span></h2>
-      <p class="lead" style="margin-bottom:44px">Fair take rates, daily settlements, incentives you can actually hit — and an app that respects your time as much as your riders'.</p>
-      <a class="btn btn-em" href="/driver">Open the partner app</a>
-    </div>
-    <div class="reveal">
-      <div class="d-stat"><b>₹45,000<i>+</i></b><span>average monthly partner earnings</span></div>
-      <div class="d-stat"><b>78<i>%</i></b><span>of every fare goes to the partner</span></div>
-      <div class="d-stat"><b>Daily</b><span>settlements, with instant payout on demand</span></div>
+<!-- app + drive -->
+<section class="wrap" id="app" style="text-align:center;padding-top:40px">
+  <div class="reveal">
+    <span class="micro em">THE APP</span>
+    <h2>Built in <span class="serif">React Native.</span></h2>
+    <p class="lead" style="max-width:560px;margin:0 auto 30px">One codebase, both sides of the trip — the rider app and the driver partner app live in <b style="color:var(--ink)">app-mobile/</b>. Run it with <code style="background:var(--gold-dim);padding:2px 8px;border-radius:6px">npx expo start</code> against the live API.</p>
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap" id="drive">
+      <a class="btn btn-em" href="https://github.com/Lovesh1/rydr-ride-hailing" target="_blank" rel="noopener">View on GitHub</a>
+      <a class="btn btn-ghost" href="/admin">Open ops console</a>
     </div>
   </div>
 </section>
@@ -252,44 +258,35 @@ footer{border-top:1px solid var(--hair);padding:70px 0 44px;position:relative;z-
   <div class="wrap">
     <div class="f-grid">
       <div>
-        <a class="logo" href="/">RYD<i>R</i></a>
-        <p style="color:var(--mut);font-size:13px;margin-top:16px;max-width:300px;line-height:1.7">The premium ride-hailing platform. A concept product — not affiliated with Ola / ANI Technologies.</p>
+        <a class="logo" href="/"><span class="mark">R</span>Ryder</a>
+        <p style="color:var(--mut);font-size:13px;margin-top:16px;max-width:300px;line-height:1.7;font-weight:600">The ride-hailing platform with heart. A concept product — not affiliated with Ola / ANI Technologies.</p>
       </div>
-      <div><h5>Product</h5><a href="/rider">Rider app</a><a href="/driver">Partner app</a><a href="/admin">Ops console</a><a href="#fleet">Fleet & fares</a></div>
+      <div><h5>Product</h5><a href="#services">Services</a><a href="#fleet">Fleet & fares</a><a href="#prime">Prime</a><a href="/admin">Ops console</a></div>
       <div><h5>Company</h5><a href="#">About</a><a href="#">Careers</a><a href="#">Journal</a><a href="#">Press</a></div>
       <div><h5>Legal</h5><a href="#">Terms</a><a href="#">Privacy</a><a href="#">Safety</a><a href="#">Refunds</a></div>
     </div>
-    <div class="f-bottom"><span>© 2026 RYDR MOBILITY</span><span>MADE WITH RESTRAINT</span></div>
+    <div class="f-bottom"><span>© 2026 RYDER MOBILITY</span><span>MADE WITH ☀ IN BENGALURU</span></div>
   </div>
 </footer>
 
 <script src="/assets/api.js"></script>
 <script>
-/* reveal */
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.1});
-$$('.reveal').forEach(el=>io.observe(el));
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 
-/* showcase: ambient fleet drifting (decorative, no auth needed) */
-const cars=[];
-const host=$('#scCars');
-const EMO={bike:'🏍',auto:'🛺',mini:'🚗',prime:'🚘',ev:'⚡'};
-const cats=['auto','mini','bike','prime','ev','auto','mini','auto'];
-for(let i=0;i<8;i++){
-  const el=document.createElement('div');
-  el.className='sc-car'+(i%3===0?' gold':'');
-  el.textContent=EMO[cats[i]];
-  el.style.left=(8+Math.random()*84)+'%';
-  el.style.top=(12+Math.random()*74)+'%';
-  host.appendChild(el);cars.push(el);
-}
-$('#scCount').textContent=`${(4300+Math.floor(Math.random()*120)).toLocaleString('en-IN')} vehicles in motion`;
-setInterval(()=>{
-  cars.forEach(el=>{
-    const l=parseFloat(el.style.left),t=parseFloat(el.style.top);
-    el.style.left=Math.max(4,Math.min(94,l+(Math.random()-.5)*9))+'%';
-    el.style.top=Math.max(8,Math.min(88,t+(Math.random()-.5)*9))+'%';
-  });
-},2400);
+/* ambient hero fleet */
+const host=document.getElementById('hvCars');
+const cats=['🛺','🚗','🏍','⚡','🚘','🛺'];
+const cars=cats.map((e,i)=>{
+  const el=document.createElement('div');el.className='hv-car';el.textContent=e;
+  el.style.left=(10+Math.random()*76)+'%';el.style.top=(14+Math.random()*66)+'%';
+  host.appendChild(el);return el;
+});
+setInterval(()=>{cars.forEach(el=>{
+  const l=parseFloat(el.style.left),t=parseFloat(el.style.top);
+  el.style.left=Math.max(4,Math.min(90,l+(Math.random()-.5)*10))+'%';
+  el.style.top=Math.max(8,Math.min(84,t+(Math.random()-.5)*10))+'%';
+})},2400);
 </script>
 </body>
 </html>

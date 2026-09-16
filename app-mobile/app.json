@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Ryder",
+    "slug": "ryder",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F6F4EF",
+    "splash": {
+      "backgroundColor": "#F6F4EF"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ryder.app"
+    },
+    "android": {
+      "package": "com.ryder.app",
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": ["expo-font"]
+  }
+}

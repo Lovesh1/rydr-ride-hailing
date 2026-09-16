@@ -1,7 +1,7 @@
 // server/routes.js — full REST API: auth, rider, driver, admin
-import { db, PLACES } from './db.js';
+import { db, PLACES, refCode } from './db.js';
 import { uid, now, otp6, ok, bad, readBody, authUser, signToken, haversineKm } from './lib.js';
-import { estimateAll, RATE_CARD } from './pricing.js';
+import { estimateCity, estimateRentals, estimateOutstation, RATE_CARD } from './pricing.js';
 import {
   createRide, rideView, cancelRide, rateRide, ledger,
   acceptRide, declineRide, markArrived, startRide, completeRide, pendingOfferFor,
@@ -10,6 +10,9 @@ import { subscribe, emitAdmins, emitTo } from './events.js';
 
 const ADMIN_PHONE = '+919999900000';
 const OTP_TTL = 5 * 60 * 1000;
+const REFERRAL_BONUS = 100;
+const PRIME_PRICE = 149;
+const PRIME_DAYS = 30;
 
 const audit = (adminId, action, target, detail = '') =>
   db.prepare('INSERT INTO audit_log (id,admin_id,action,target,detail,created_at) VALUES (?,?,?,?,?,?)')
@@ -18,7 +21,7 @@ const audit = (adminId, action, target, detail = '') =>
 export async function route(req, res, url) {
   const p = url.pathname;
   const m = req.method;
-  const seg = p.split('/').filter(Boolean); // e.g. ['api','rides','R_xx','cancel']
+  const seg = p.split('/').filter(Boolean);
 
   /* ================= AUTH ================= */
   if (p === '/api/auth/otp' && m === 'POST') {
@@ -29,11 +32,11 @@ export async function route(req, res, url) {
       .run(phone, code, now() + OTP_TTL, code, now() + OTP_TTL);
     // PRODUCTION: hand `code` to an SMS gateway (Twilio Verify / MSG91) here.
     console.log(`[auth] OTP for ${phone}: ${code}`);
-    return ok(res, { sent: true, demo_otp: code }); // demo_otp exposed only because no SMS gateway is wired
+    return ok(res, { sent: true, demo_otp: code });
   }
 
   if (p === '/api/auth/verify' && m === 'POST') {
-    const { phone, otp, name, role } = await readBody(req);
+    const { phone, otp, name, role, referral } = await readBody(req);
     const row = db.prepare('SELECT * FROM otps WHERE phone = ?').get(phone);
     if (!row || row.expires_at < now()) return bad(res, 'OTP expired — request a new one');
     if (row.attempts >= 5) return bad(res, 'too many attempts');
@@ -47,9 +50,20 @@ export async function route(req, res, url) {
     if (!user) {
       const wantRole = phone === ADMIN_PHONE ? 'admin' : (role === 'driver' ? 'driver' : 'rider');
       const id = uid('usr');
-      db.prepare('INSERT INTO users (id,phone,name,role,created_at) VALUES (?,?,?,?,?)')
-        .run(id, phone, name || 'RYDR user', wantRole, now());
-      if (wantRole === 'rider') ledger(id, 'topup', 500, 'welcome credit 🎁');
+      db.prepare('INSERT INTO users (id,phone,name,role,referral_code,created_at) VALUES (?,?,?,?,?,?)')
+        .run(id, phone, name || 'Ryder user', wantRole, refCode(), now());
+      if (wantRole === 'rider') {
+        ledger(id, 'topup', 500, 'welcome credit 🎁');
+        if (referral) {
+          const ref = db.prepare('SELECT id, name FROM users WHERE referral_code = ?').get(referral.toUpperCase());
+          if (ref && ref.id !== id) {
+            db.prepare('UPDATE users SET referred_by = ? WHERE id = ?').run(ref.id, id);
+            ledger(id, 'referral', REFERRAL_BONUS, `referred by ${ref.name}`);
+            ledger(ref.id, 'referral', REFERRAL_BONUS, 'friend joined with your code');
+            emitTo(ref.id, 'referral', { bonus: REFERRAL_BONUS });
+          }
+        }
+      }
       if (wantRole === 'driver') {
         db.prepare('INSERT INTO drivers (user_id,category,vehicle_make,plate,kyc_status,lat,lng) VALUES (?,?,?,?,?,?,?)')
           .run(id, 'auto', 'Bajaj RE', 'KA 00 NEW 0000', 'pending', 12.9352, 77.6245);
@@ -75,7 +89,7 @@ export async function route(req, res, url) {
 
   if (p === '/api/me' && m === 'GET') {
     const driver = me.role === 'driver' ? db.prepare('SELECT * FROM drivers WHERE user_id = ?').get(me.id) : null;
-    return ok(res, { user: me, driver });
+    return ok(res, { user: me, driver, prime: (me.prime_until || 0) > now() });
   }
 
   if (p === '/api/places' && m === 'GET') {
@@ -83,10 +97,17 @@ export async function route(req, res, url) {
     return ok(res, PLACES.filter(pl => pl.name.toLowerCase().includes(q)).slice(0, 8));
   }
 
+  /* ---------- estimates ---------- */
   if (p === '/api/fares/estimate' && m === 'POST') {
-    const { pickup, drop } = await readBody(req);
+    const { pickup, drop, stops } = await readBody(req);
     if (!pickup?.lat || !drop?.lat) return bad(res, 'pickup and drop required');
-    return ok(res, estimateAll(pickup.lat, pickup.lng, drop.lat, drop.lng));
+    return ok(res, estimateCity([pickup, ...(stops || []), drop], me.id));
+  }
+  if (p === '/api/fares/rentals' && m === 'GET') return ok(res, estimateRentals(me.id));
+  if (p === '/api/fares/outstation' && m === 'POST') {
+    const { pickup, drop, trip_type } = await readBody(req);
+    if (!pickup?.lat || !drop?.lat) return bad(res, 'pickup and drop required');
+    return ok(res, estimateOutstation([pickup, drop], trip_type || 'oneway', me.id));
   }
 
   /* ================= RIDER ================= */
@@ -95,13 +116,14 @@ export async function route(req, res, url) {
     const active = db.prepare("SELECT id FROM rides WHERE rider_id = ? AND status IN ('SEARCHING','ACCEPTED','ARRIVED','ONGOING')").get(me.id);
     if (active) return bad(res, 'you already have an active ride');
     const body = await readBody(req);
-    if (body.payment_method === 'wallet' || !body.payment_method) {
-      const est = estimateAll(body.pickup.lat, body.pickup.lng, body.drop.lat, body.drop.lng);
-      const opt = est.options.find(o => o.category === body.category);
-      if (opt && me.wallet_balance < opt.fare) return bad(res, `insufficient wallet balance (₹${me.wallet_balance.toFixed(0)}) — top up or pay cash`);
-    }
-    try { return ok(res, createRide(me.id, body)); }
-    catch (e) { return bad(res, e.message); }
+    try {
+      const r = createRide(me.id, body);
+      if ((body.payment_method === 'wallet' || !body.payment_method) && me.wallet_balance < r.fare_quoted) {
+        cancelRide(r.id, me.id, 'rider', 'insufficient balance');
+        return bad(res, `insufficient wallet balance (₹${Math.round(me.wallet_balance)}) — top up or pay cash`);
+      }
+      return ok(res, r);
+    } catch (e) { return bad(res, e.message); }
   }
 
   if (p === '/api/rides/active' && m === 'GET') {
@@ -109,8 +131,13 @@ export async function route(req, res, url) {
     return ok(res, r ? rideView(r.id) : null);
   }
 
+  if (p === '/api/rides/scheduled' && m === 'GET') {
+    return ok(res, db.prepare(`SELECT * FROM rides WHERE rider_id = ? AND status = 'SCHEDULED' ORDER BY scheduled_at`).all(me.id));
+  }
+
   if (p === '/api/rides' && m === 'GET') {
     const rows = db.prepare(`SELECT * FROM rides WHERE rider_id = ? ORDER BY requested_at DESC LIMIT 30`).all(me.id);
+    rows.forEach(r => { try { r.fare_breakdown = JSON.parse(r.fare_breakdown || 'null'); } catch {} });
     return ok(res, rows);
   }
 
@@ -155,6 +182,7 @@ export async function route(req, res, url) {
     return ok(res, v);
   }
 
+  /* ---------- wallet ---------- */
   if (p === '/api/wallet' && m === 'GET') {
     const txs = db.prepare('SELECT * FROM wallet_ledger WHERE user_id = ? ORDER BY created_at DESC LIMIT 30').all(me.id);
     const bal = db.prepare('SELECT wallet_balance FROM users WHERE id = ?').get(me.id).wallet_balance;
@@ -167,6 +195,73 @@ export async function route(req, res, url) {
     // PRODUCTION: create a Razorpay/Stripe order here and credit on webhook confirmation.
     const bal = ledger(me.id, 'topup', amt, 'added via UPI (demo gateway)');
     return ok(res, { balance: bal });
+  }
+
+  /* ---------- prime membership ---------- */
+  if (p === '/api/prime/subscribe' && m === 'POST') {
+    if ((me.prime_until || 0) > now()) return bad(res, 'already a Prime member');
+    if (me.wallet_balance < PRIME_PRICE) return bad(res, `needs ₹${PRIME_PRICE} in wallet`);
+    ledger(me.id, 'prime', -PRIME_PRICE, `Ryder Prime · ${PRIME_DAYS} days`);
+    const until = now() + PRIME_DAYS * 864e5;
+    db.prepare('UPDATE users SET prime_until = ? WHERE id = ?').run(until, me.id);
+    return ok(res, { prime_until: until });
+  }
+
+  /* ---------- saved places ---------- */
+  if (p === '/api/saved-places' && m === 'GET') {
+    return ok(res, db.prepare('SELECT * FROM saved_places WHERE user_id = ? ORDER BY created_at').all(me.id));
+  }
+  if (p === '/api/saved-places' && m === 'POST') {
+    const { label, name, lat, lng } = await readBody(req);
+    if (!label || !name || !lat) return bad(res, 'label, name, lat, lng required');
+    db.prepare('DELETE FROM saved_places WHERE user_id = ? AND label = ?').run(me.id, label);
+    const id = uid('pl');
+    db.prepare('INSERT INTO saved_places (id,user_id,label,name,lat,lng,created_at) VALUES (?,?,?,?,?,?,?)')
+      .run(id, me.id, label, name, lat, lng, now());
+    return ok(res, { id });
+  }
+  if (seg[1] === 'saved-places' && seg.length === 3 && m === 'DELETE') {
+    db.prepare('DELETE FROM saved_places WHERE id = ? AND user_id = ?').run(seg[2], me.id);
+    return ok(res, { deleted: true });
+  }
+
+  /* ---------- emergency contacts ---------- */
+  if (p === '/api/emergency-contacts' && m === 'GET') {
+    return ok(res, db.prepare('SELECT * FROM emergency_contacts WHERE user_id = ?').all(me.id));
+  }
+  if (p === '/api/emergency-contacts' && m === 'POST') {
+    const { name, phone } = await readBody(req);
+    if (!name || !phone) return bad(res, 'name and phone required');
+    const cnt = db.prepare('SELECT COUNT(*) c FROM emergency_contacts WHERE user_id = ?').get(me.id).c;
+    if (cnt >= 5) return bad(res, 'max 5 contacts');
+    const id = uid('ec');
+    db.prepare('INSERT INTO emergency_contacts (id,user_id,name,phone,created_at) VALUES (?,?,?,?,?)')
+      .run(id, me.id, name, phone, now());
+    return ok(res, { id });
+  }
+  if (seg[1] === 'emergency-contacts' && seg.length === 3 && m === 'DELETE') {
+    db.prepare('DELETE FROM emergency_contacts WHERE id = ? AND user_id = ?').run(seg[2], me.id);
+    return ok(res, { deleted: true });
+  }
+
+  /* ---------- support tickets ---------- */
+  if (p === '/api/tickets' && m === 'GET') {
+    return ok(res, db.prepare('SELECT * FROM tickets WHERE user_id = ? ORDER BY created_at DESC').all(me.id));
+  }
+  if (p === '/api/tickets' && m === 'POST') {
+    const { ride_id, type, message } = await readBody(req);
+    if (!type) return bad(res, 'ticket type required');
+    const id = uid('tk');
+    db.prepare('INSERT INTO tickets (id,user_id,ride_id,type,message,created_at) VALUES (?,?,?,?,?,?)')
+      .run(id, me.id, ride_id || null, type, message || '', now());
+    emitAdmins('ticket', { id, type, user: me.name });
+    return ok(res, { id });
+  }
+
+  /* ---------- referral ---------- */
+  if (p === '/api/referral' && m === 'GET') {
+    const count = db.prepare('SELECT COUNT(*) c FROM users WHERE referred_by = ?').get(me.id).c;
+    return ok(res, { code: me.referral_code, referred: count, bonus_each: REFERRAL_BONUS });
   }
 
   /* ================= DRIVER ================= */
@@ -191,7 +286,7 @@ export async function route(req, res, url) {
 
     if (p === '/api/driver/offer' && m === 'GET') return ok(res, pendingOfferFor(me.id));
 
-    const act = seg[4]; // /api/driver/rides/:id/:action
+    const act = seg[4];
     if (seg[2] === 'rides' && m === 'POST') {
       const rid = seg[3];
       try {
@@ -234,6 +329,7 @@ export async function route(req, res, url) {
       const g = (sql, ...a) => db.prepare(sql).get(...a);
       return ok(res, {
         active_rides: g("SELECT COUNT(*) c FROM rides WHERE status IN ('SEARCHING','ACCEPTED','ARRIVED','ONGOING')").c,
+        scheduled_rides: g("SELECT COUNT(*) c FROM rides WHERE status = 'SCHEDULED'").c,
         online_drivers: g('SELECT COUNT(*) c FROM drivers WHERE is_online = 1').c,
         total_drivers: g('SELECT COUNT(*) c FROM drivers').c,
         riders: g("SELECT COUNT(*) c FROM users WHERE role = 'rider'").c,
@@ -243,6 +339,7 @@ export async function route(req, res, url) {
         cancelled_today: g("SELECT COUNT(*) c FROM rides WHERE status='CANCELLED' AND cancelled_at >= ?", dayStart.getTime()).c,
         kyc_pending: g("SELECT COUNT(*) c FROM drivers WHERE kyc_status = 'pending'").c,
         open_sos: g("SELECT COUNT(*) c FROM sos_events WHERE status = 'open'").c,
+        open_tickets: g("SELECT COUNT(*) c FROM tickets WHERE status = 'open'").c,
       });
     }
 
@@ -276,7 +373,7 @@ export async function route(req, res, url) {
 
     if (p === '/api/admin/riders' && m === 'GET') {
       return ok(res, db.prepare(`
-        SELECT id, name, phone, rating, rides_count, wallet_balance, status, created_at
+        SELECT id, name, phone, rating, rides_count, wallet_balance, status, prime_until, created_at
         FROM users WHERE role = 'rider' ORDER BY created_at DESC LIMIT 100`).all());
     }
 
@@ -291,7 +388,7 @@ export async function route(req, res, url) {
 
     if (seg[2] === 'zones' && seg[4] === 'surge' && m === 'POST') {
       const { surge } = await readBody(req);
-      const s = Math.min(Math.max(Number(surge) || 1, 1), 3); // hard cap 3×
+      const s = Math.min(Math.max(Number(surge) || 1, 1), 3);
       db.prepare('UPDATE zones SET surge = ?, updated_at = ? WHERE id = ?').run(s, now(), seg[3]);
       audit(me.id, 'set_surge', seg[3], `→ ${s}x`);
       emitAdmins('zone', db.prepare('SELECT * FROM zones WHERE id = ?').get(seg[3]));
@@ -303,12 +400,15 @@ export async function route(req, res, url) {
       const byCat = db.prepare(`
         SELECT category, COUNT(*) trips, COALESCE(SUM(fare_final),0) gross
         FROM rides WHERE status='COMPLETED' GROUP BY category ORDER BY gross DESC`).all();
+      const byType = db.prepare(`
+        SELECT type, COUNT(*) trips, COALESCE(SUM(fare_final),0) gross
+        FROM rides WHERE status='COMPLETED' GROUP BY type`).all();
       const daily = db.prepare(`
         SELECT date(completed_at/1000,'unixepoch') day, COUNT(*) trips, COALESCE(SUM(fare_final),0) gross
         FROM rides WHERE status='COMPLETED' AND completed_at >= ? GROUP BY day ORDER BY day`).all(weekStart);
       const totals = db.prepare(`
         SELECT COALESCE(SUM(fare_final),0) gmv, COUNT(*) trips FROM rides WHERE status='COMPLETED'`).get();
-      return ok(res, { by_category: byCat, daily, gmv: totals.gmv, trips: totals.trips, take_rate: 0.22, net: Math.round(totals.gmv * 0.22) });
+      return ok(res, { by_category: byCat, by_type: byType, daily, gmv: totals.gmv, trips: totals.trips, take_rate: 0.22, net: Math.round(totals.gmv * 0.22) });
     }
 
     if (p === '/api/admin/positions' && m === 'GET') {
@@ -326,6 +426,17 @@ export async function route(req, res, url) {
     if (seg[2] === 'sos' && seg[4] === 'resolve' && m === 'POST') {
       db.prepare("UPDATE sos_events SET status='resolved', resolved_at=?, resolved_by=? WHERE id=?").run(now(), me.id, seg[3]);
       audit(me.id, 'resolve_sos', seg[3]);
+      return ok(res, { resolved: true });
+    }
+
+    if (p === '/api/admin/tickets' && m === 'GET') {
+      return ok(res, db.prepare(`
+        SELECT t.*, u.name AS user_name FROM tickets t JOIN users u ON u.id = t.user_id
+        ORDER BY t.status = 'open' DESC, t.created_at DESC LIMIT 50`).all());
+    }
+    if (seg[2] === 'tickets' && seg[4] === 'resolve' && m === 'POST') {
+      db.prepare("UPDATE tickets SET status='resolved', resolved_at=? WHERE id=?").run(now(), seg[3]);
+      audit(me.id, 'resolve_ticket', seg[3]);
       return ok(res, { resolved: true });
     }
 

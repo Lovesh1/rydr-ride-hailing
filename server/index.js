@@ -1,4 +1,4 @@
-// server/index.js — HTTP server: static web clients + REST API + SSE
+// server/index.js — HTTP server: static web clients + REST API + SSE + schedulers
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -6,6 +6,7 @@ import path from 'node:path';
 import './db.js';
 import { route } from './routes.js';
 import { startSim } from './sim.js';
+import { dispatchDueScheduled } from './rides.js';
 import { bad } from './lib.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,10 +22,16 @@ const MIME = {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+
+  // CORS — lets the Expo dev server (:8081) and native apps call the API.
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+
   try {
     if (url.pathname.startsWith('/api/')) return await route(req, res, url);
 
-    // static
     let file = url.pathname === '/' ? '/index.html' : url.pathname;
     if (!path.extname(file)) file += '.html';
     const full = path.normalize(path.join(WEB, file));
@@ -45,13 +52,16 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`
-  ⚡ RYDR production server
+  ⚡ Ryder production server
   ─────────────────────────────
-  app      http://localhost:${PORT}
-  rider    http://localhost:${PORT}/rider
-  driver   http://localhost:${PORT}/driver
-  admin    http://localhost:${PORT}/admin   (login: +919999900000)
-  api      http://localhost:${PORT}/api/*
+  web       http://localhost:${PORT}          (landing)
+  admin     http://localhost:${PORT}/admin    (login: +919999900000)
+  api       http://localhost:${PORT}/api/*
+  mobile    Expo app in app-mobile/ (rider + driver)
   `);
   startSim();
+  setInterval(() => {
+    const n = dispatchDueScheduled();
+    if (n) console.log(`[scheduler] dispatched ${n} scheduled ride(s)`);
+  }, 15000);
 });
