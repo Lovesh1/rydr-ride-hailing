@@ -163,9 +163,10 @@ export function cityFare(category, distKm, durMin, { surge = 1, night = false, p
   };
 }
 
-/** estimate across all city categories, with breakdowns */
-export function estimateCity(points, userId) {
-  const { distKm, durMin } = routeMetrics(points);
+/** estimate across all city categories, with breakdowns.
+    routeOverride: {distKm, durMin} from a real routing provider (Google Directions). */
+export function estimateCity(points, userId, routeOverride = null) {
+  const { distKm, durMin } = routeOverride || routeMetrics(points);
   const { surge, zone } = surgeAt(points[0].lat, points[0].lng);
   const night = isNight();
   const prime = isPrime(userId);

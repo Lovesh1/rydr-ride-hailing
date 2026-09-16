@@ -14,16 +14,27 @@ const Tabs = createBottomTabNavigator();
 /* =====================================================================
    HOME — online toggle + offer modal + active trip
 ===================================================================== */
+const PREF_CHIPS = {
+  quiet: '🤫 quiet ride', ac: '❄ AC on', luggage_help: '🧳 luggage help',
+  prefer_woman_driver: '👩 woman-driver pref', auto_share: '📡 auto-shared trip',
+};
+
 function DriveScreen() {
   const [me, setMe] = useState(null);
   const [drv, setDrv] = useState(null);
   const [sum, setSum] = useState(null);
   const [online, setOnline] = useState(false);
   const [offer, setOffer] = useState(null);
+  const [offerPrefs, setOfferPrefs] = useState({});
   const [offerLeft, setOfferLeft] = useState(15);
   const [trip, setTrip] = useState(null);
   const [otp, setOtp] = useState('');
+  const [zones, setZones] = useState([]);
   const offerTimer = useRef(null);
+
+  usePoll(async () => {
+    if (online) setZones(await api.get('/api/driver/zones').catch(() => []));
+  }, 30000, [online], true);
 
   const loadMe = useCallback(async () => {
     const r = await api.get('/api/me');
@@ -51,7 +62,7 @@ function DriveScreen() {
     if (!online || trip || offer) return;
     const o = await api.get('/api/driver/offer');
     if (o) {
-      setOffer(o); setOfferLeft(12);
+      setOffer(o); setOfferPrefs(o.rider_prefs || {}); setOfferLeft(12);
       clearInterval(offerTimer.current);
       offerTimer.current = setInterval(() => setOfferLeft(s => {
         if (s <= 1) { clearInterval(offerTimer.current); setOffer(null); return 0; }
@@ -255,6 +266,20 @@ function DriveScreen() {
         </View>
       </TouchableOpacity>
 
+      {online && zones.length > 0 && (
+        <View style={[S.card, { marginTop: 14, padding: 16 }]}>
+          <Text style={[S.h3, { marginBottom: 8 }]}>Demand right now</Text>
+          {zones.slice(0, 4).map(z => (
+            <View key={z.name} style={[S.row, { justifyContent: 'space-between', paddingVertical: 6 }]}>
+              <Text style={S.body}>{z.surge > 1.3 ? '🔥' : z.surge > 1 ? '📈' : '·'} {z.name}</Text>
+              <Text style={{ fontFamily: F.uiHeavy, fontSize: 13, color: z.surge > 1.3 ? C.red : z.surge > 1 ? C.amber : C.mut }}>
+                {z.surge.toFixed(1)}×
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* offer modal */}
       <Modal visible={!!offer} transparent animationType="slide" onRequestClose={decline}>
         <View style={{ flex: 1, backgroundColor: '#18242088', justifyContent: 'flex-end' }}>
@@ -281,6 +306,13 @@ function DriveScreen() {
               <Text style={[S.mut, { marginTop: 8 }]}>
                 rider ★ {(offer?.rider_rating || 5).toFixed(1)} · pays via {offer?.payment_method} · {offer?.type}
               </Text>
+              {Object.keys(offerPrefs).some(k => offerPrefs[k]) && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                  {Object.entries(offerPrefs).filter(([, v]) => v).map(([k]) => (
+                    <Pill key={k} text={PREF_CHIPS[k] || k} tone="em" />
+                  ))}
+                </View>
+              )}
             </View>
             <View style={[S.row, { gap: 12, marginTop: 18 }]}>
               <Btn title="Decline" kind="ghost" onPress={decline} style={{ flex: 1 }} />

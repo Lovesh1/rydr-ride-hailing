@@ -7,6 +7,10 @@ import {
   acceptRide, declineRide, markArrived, startRide, completeRide, pendingOfferFor,
 } from './rides.js';
 import { subscribe, emitAdmins, emitTo } from './events.js';
+import {
+  PROVIDERS, searchPlaces, routeViaGoogle, sendOtpSms,
+  createTopupOrder, verifyRazorpayWebhook,
+} from './integrations.js';
 
 import crypto from 'node:crypto';
 import { CONFIG } from './config.js';
@@ -56,12 +60,36 @@ export async function route(req, res, url) {
     const h = hashOtp(code, phone);
     db.prepare('INSERT INTO otps (phone,code,expires_at,attempts) VALUES (?,?,?,0) ON CONFLICT(phone) DO UPDATE SET code=?, expires_at=?, attempts=0')
       .run(phone, h, now() + OTP_TTL, h, now() + OTP_TTL);
-    // PRODUCTION: hand `code` to an SMS gateway (Twilio Verify / MSG91) here.
+    const sms = await sendOtpSms(phone, code);        // Twilio when configured, console otherwise
     inc('ryder_business_events_total', { event: 'otp_sent' });
-    log.info('auth.otp_sent', { phone: phone.slice(0, 6) + '…' });
-    const body = { sent: true };
-    if (CONFIG.exposeDemoOtp) body.demo_otp = code;   // demo only; off in prod
+    log.info('auth.otp_sent', { phone: phone.slice(0, 6) + '…', provider: sms.provider });
+    const body = { sent: true, provider: sms.provider };
+    // demo OTP disappears once real SMS delivery works
+    if (CONFIG.exposeDemoOtp && !sms.delivered) body.demo_otp = code;
     return ok(res, body);
+  }
+
+  /* Razorpay webhook — credits wallet exactly once per captured payment */
+  if (p === '/api/webhooks/razorpay' && m === 'POST') {
+    let raw = '';
+    await new Promise((resolve) => { req.on('data', c => raw += c); req.on('end', resolve); });
+    if (!verifyRazorpayWebhook(raw, req.headers['x-razorpay-signature'])) {
+      return bad(res, 'invalid signature', 401);
+    }
+    try {
+      const evt = JSON.parse(raw);
+      if (evt.event === 'payment.captured') {
+        const pay = evt.payload.payment.entity;
+        const userId = pay.notes?.user_id;
+        const already = db.prepare("SELECT 1 FROM wallet_ledger WHERE type = 'topup' AND note = ?")
+          .get(`razorpay ${pay.id}`);
+        if (userId && !already) {
+          ledger(userId, 'topup', pay.amount / 100, `razorpay ${pay.id}`);
+          inc('ryder_business_events_total', { event: 'topup' });
+        }
+      }
+      return ok(res, { received: true });
+    } catch (e) { return bad(res, e.message); }
   }
 
   if (p === '/api/auth/verify' && m === 'POST') {
@@ -127,14 +155,23 @@ export async function route(req, res, url) {
 
   if (p === '/api/places' && m === 'GET') {
     const q = (url.searchParams.get('q') || '').toLowerCase();
-    return ok(res, PLACES.filter(pl => pl.name.toLowerCase().includes(q)).slice(0, 8));
+    // recents first (empty query), then provider results (Google when keyed, builtin otherwise)
+    const recents = q ? [] : db.prepare(
+      'SELECT name, lat, lng FROM recent_places WHERE user_id = ? ORDER BY last_used DESC LIMIT 4')
+      .all(me.id).map(r => ({ ...r, recent: true }));
+    const results = await searchPlaces(q,
+      () => PLACES.filter(pl => pl.name.toLowerCase().includes(q)).slice(0, 8));
+    const seen = new Set(recents.map(r => r.name));
+    return ok(res, [...recents, ...results.filter(r => !seen.has(r.name))].slice(0, 10));
   }
 
   /* ---------- estimates ---------- */
   if (p === '/api/fares/estimate' && m === 'POST') {
     const { pickup, drop, stops } = await readBody(req);
     if (!pickup?.lat || !drop?.lat) return bad(res, 'pickup and drop required');
-    return ok(res, estimateCity([pickup, ...(stops || []), drop], me.id));
+    const points = [pickup, ...(stops || []), drop];
+    const gRoute = await routeViaGoogle(points);   // real road distance + traffic ETA when keyed
+    return ok(res, { ...estimateCity(points, me.id, gRoute), route_source: gRoute ? 'google' : 'model' });
   }
   if (p === '/api/fares/rentals' && m === 'GET') return ok(res, estimateRentals(me.id));
   if (p === '/api/fares/outstation' && m === 'POST') {
@@ -152,6 +189,9 @@ export async function route(req, res, url) {
   if (p === '/api/rides' && m === 'POST') {
     if (me.role !== 'rider') return bad(res, 'riders only', 403);
     const body = await readBody(req);
+    if ((body.type || 'city') === 'city' && body.pickup?.lat && body.drop?.lat) {
+      body._route = await routeViaGoogle([body.pickup, ...(body.stops || []), body.drop]);
+    }
     return idempotent(req, me.id, 'create_ride', res, (store) => {
       if (!body.pickup?.lat || !body.category) return bad(res, 'pickup and category required');
       const active = db.prepare("SELECT id FROM rides WHERE rider_id = ? AND status IN ('SEARCHING','ACCEPTED','ARRIVED','ONGOING')").get(me.id);
@@ -237,7 +277,14 @@ export async function route(req, res, url) {
   if (p === '/api/wallet/topup' && m === 'POST') {
     const { amount } = await readBody(req);
     const amt = Math.min(Math.max(Number(amount) || 0, 1), 10000);
-    // PRODUCTION: create a Razorpay/Stripe order here and credit on webhook confirmation.
+    if (PROVIDERS.payments === 'razorpay') {
+      // real flow: return an order; the client opens Razorpay Checkout with it,
+      // and the wallet is credited by the signed webhook, not here.
+      try {
+        const order = await createTopupOrder(me.id, amt);
+        return ok(res, { pending: true, gateway: 'razorpay', ...order });
+      } catch (e) { return bad(res, `payment gateway error: ${e.message}`, 502); }
+    }
     return idempotent(req, me.id, 'topup', res, (store) => {
       const bal = ledger(me.id, 'topup', amt, 'added via UPI (demo gateway)');
       inc('ryder_business_events_total', { event: 'topup' });
@@ -317,6 +364,59 @@ export async function route(req, res, url) {
     return ok(res, { id });
   }
 
+  /* ---------- ride preferences ---------- */
+  if (p === '/api/preferences' && m === 'GET') {
+    let prefs = {}; try { prefs = JSON.parse(me.ride_prefs || '{}'); } catch {}
+    return ok(res, prefs);
+  }
+  if (p === '/api/preferences' && m === 'POST') {
+    const body = await readBody(req);
+    const allowed = ['quiet', 'ac', 'luggage_help', 'prefer_woman_driver', 'auto_share'];
+    const prefs = {};
+    for (const k of allowed) if (typeof body[k] === 'boolean') prefs[k] = body[k];
+    db.prepare('UPDATE users SET ride_prefs = ? WHERE id = ?').run(JSON.stringify(prefs), me.id);
+    return ok(res, prefs);
+  }
+
+  /* ---------- favourite drivers ---------- */
+  if (p === '/api/favourites' && m === 'GET') {
+    return ok(res, db.prepare(`
+      SELECT f.driver_id, u.name, u.rating, d.vehicle_make, d.category
+      FROM favourite_drivers f JOIN users u ON u.id = f.driver_id
+      JOIN drivers d ON d.user_id = f.driver_id
+      WHERE f.user_id = ? ORDER BY f.created_at DESC`).all(me.id));
+  }
+  if (p === '/api/favourites' && m === 'POST') {
+    const { driver_id, remove } = await readBody(req);
+    if (!driver_id) return bad(res, 'driver_id required');
+    if (remove) {
+      db.prepare('DELETE FROM favourite_drivers WHERE user_id = ? AND driver_id = ?').run(me.id, driver_id);
+      return ok(res, { favourited: false });
+    }
+    const isDriver = db.prepare('SELECT 1 FROM drivers WHERE user_id = ?').get(driver_id);
+    if (!isDriver) return bad(res, 'not a driver');
+    db.prepare('INSERT OR IGNORE INTO favourite_drivers (user_id,driver_id,created_at) VALUES (?,?,?)')
+      .run(me.id, driver_id, now());
+    return ok(res, { favourited: true });
+  }
+
+  /* ---------- account deletion (DPDP data-principal right) ---------- */
+  if (p === '/api/me/delete' && m === 'POST') {
+    const { confirm } = await readBody(req);
+    if (confirm !== 'DELETE') return bad(res, 'pass {"confirm":"DELETE"} to erase your account');
+    if (me.wallet_balance < 0) return bad(res, 'settle your postpaid balance first');
+    // anonymize PII; ledger rows are retained for statutory books (see SECURITY.md §9)
+    db.prepare(`UPDATE users SET name = 'Deleted user', phone = ?, email = '', status = 'blocked',
+        ride_prefs = '{}', referral_code = ? WHERE id = ?`)
+      .run('deleted_' + me.id, 'X' + me.id.slice(-8).toUpperCase(), me.id);
+    db.prepare('DELETE FROM saved_places WHERE user_id = ?').run(me.id);
+    db.prepare('DELETE FROM emergency_contacts WHERE user_id = ?').run(me.id);
+    db.prepare('DELETE FROM recent_places WHERE user_id = ?').run(me.id);
+    db.prepare('DELETE FROM favourite_drivers WHERE user_id = ?').run(me.id);
+    inc('ryder_business_events_total', { event: 'account_deleted' });
+    return ok(res, { deleted: true });
+  }
+
   /* ---------- referral ---------- */
   if (p === '/api/referral' && m === 'GET') {
     const count = db.prepare('SELECT COUNT(*) c FROM users WHERE referred_by = ?').get(me.id).c;
@@ -364,7 +464,21 @@ export async function route(req, res, url) {
       return ok(res, { ok: true });
     }
 
-    if (p === '/api/driver/offer' && m === 'GET') return ok(res, pendingOfferFor(me.id));
+    if (p === '/api/driver/offer' && m === 'GET') {
+      const offer = pendingOfferFor(me.id);
+      if (offer) {
+        try {
+          offer.rider_prefs = JSON.parse(
+            db.prepare('SELECT ride_prefs FROM users WHERE id = ?').get(offer.rider_id)?.ride_prefs || '{}');
+        } catch { offer.rider_prefs = {}; }
+      }
+      return ok(res, offer);
+    }
+
+    /* demand heatmap: where surge is paying right now */
+    if (p === '/api/driver/zones' && m === 'GET') {
+      return ok(res, db.prepare('SELECT name, lat, lng, surge FROM zones ORDER BY surge DESC').all());
+    }
 
     const act = seg[4];
     if (seg[2] === 'rides' && m === 'POST') {

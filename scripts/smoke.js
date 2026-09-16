@@ -126,6 +126,22 @@ try {
   const pp2 = await api('POST', '/api/postpaid/activate');
   assert(pp2.status === 400, 'postpaid double-activation refused');
 
+  // ride preferences round-trip
+  const setP = await api('POST', '/api/preferences', { quiet: true, prefer_woman_driver: true });
+  assert(setP.status === 200 && setP.data.quiet === true, 'ride preferences saved');
+  const getP = await api('GET', '/api/preferences');
+  assert(getP.data.prefer_woman_driver === true, 'ride preferences read back');
+
+  // favourite driver add + list
+  const favAdd = await api('POST', '/api/favourites', { driver_id: ride.driver_id });
+  assert(favAdd.status === 200 && favAdd.data.favourited, 'driver favourited');
+  const favList = await api('GET', '/api/favourites');
+  assert(favList.data.some(f => f.driver_id === ride.driver_id), 'favourites listed');
+
+  // recent destinations recorded on completion, surface in place search
+  const placesNow = await api('GET', '/api/places?q=');
+  assert(placesNow.data.some(pl => pl.recent), 'recent destination surfaces in search');
+
   // driver GoTo endpoint (login as bot fleet driver)
   const riderToken = TOKEN;
   const dOtp = await api('POST', '/api/auth/otp', { phone: '+919000000010' });
@@ -135,7 +151,21 @@ try {
   assert(goto1.status === 200 && goto1.data.goto.expires_at > Date.now(), 'driver GoTo set');
   const sum = await api('GET', '/api/driver/summary');
   assert(sum.status === 200 && sum.data.goto, 'summary reflects GoTo + hours_online');
+  const dz = await api('GET', '/api/driver/zones');
+  assert(dz.status === 200 && dz.data.length >= 4, 'driver demand zones listed');
   await api('POST', '/api/driver/goto', { clear: true });
+  TOKEN = riderToken;
+
+  // DPDP account deletion (fresh throwaway account)
+  const delOtp = await api('POST', '/api/auth/otp', { phone: '+919876588888' });
+  const delVer = await api('POST', '/api/auth/verify', { phone: '+919876588888', otp: delOtp.data.demo_otp, name: 'Temp User' });
+  TOKEN = delVer.data.token;
+  const delNo = await api('POST', '/api/me/delete', {});
+  assert(delNo.status === 400, 'deletion requires explicit confirm');
+  const delYes = await api('POST', '/api/me/delete', { confirm: 'DELETE' });
+  assert(delYes.status === 200 && delYes.data.deleted, 'account anonymized (DPDP)');
+  const delAfter = await api('GET', '/api/me');
+  assert(delAfter.status === 403, 'deleted account can no longer authenticate');
   TOKEN = riderToken;
 
   // rating

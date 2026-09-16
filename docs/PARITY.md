@@ -18,7 +18,7 @@ Ryder implements the same *capabilities* with original code and design.
 | 1.3 | Referral code at signup | both sides credited | ✅ ₹100 both sides |
 | 1.4 | Welcome offers | first-ride coupons | ✅ FIRST50 auto-suggested + ₹500 welcome credit |
 | 1.5 | Multi-language UI | EN + regional | ❌ deferred — i18n scaffold at launch localization pass |
-| 1.6 | Account deletion / DPDP rights | in-app request | 🟡 documented (SECURITY.md §9); endpoint at compliance pass |
+| 1.6 | Account deletion / DPDP rights | in-app request | 🔵 `/api/me/delete` — confirm-gated, anonymizes PII, keeps statutory ledger |
 
 ## 2. Rider — home screen
 
@@ -29,7 +29,7 @@ Ryder implements the same *capabilities* with original code and design.
 | 2.3 | "Where to?" search bar | prominent | ✅ |
 | 2.4 | Service tiles (city/rental/outstation/parcel…) | grid | ✅ + 🔵 Parcel tile |
 | 2.5 | Saved places quick chips (Home/Work) | one-tap | ✅ save + one-tap booking |
-| 2.6 | Recent destinations | list | 🟡 place list; per-user recents = one query, next pass |
+| 2.6 | Recent destinations | list | 🔵 per-user recents (last 6 drops) surface first in search |
 | 2.7 | Promo/announcement banners | CMS-driven | ✅ static banner; CMS = admin phase |
 | 2.8 | Wallet balance / Prime badge on home | header | ✅ |
 
@@ -37,7 +37,8 @@ Ryder implements the same *capabilities* with original code and design.
 
 | # | Detail | Ola | Ryder |
 |---|---|---|---|
-| 3.1 | Destination autocomplete | Google Places | ✅ place search API (vendor swap point marked) |
+| 3.1 | Destination autocomplete | Google Places | ✅ 🔵 **real Google Places when `GOOGLE_MAPS_API_KEY` is set**; builtin fallback |
+| 3.1b | Road distance + traffic ETA | Google Directions | 🔵 **real Directions (with stops + traffic) when keyed**; haversine model fallback |
 | 3.2 | Category list w/ ETA + seats + upfront fare | per category | ✅ six categories |
 | 3.3 | Fare breakdown viewable pre-book | tap info | ✅ full component modal (base/slabs/time/fee/surge/night/GST) |
 | 3.4 | Surge shown honestly | peak pricing flag | ✅ badge + amount in breakdown, admin-capped 3× |
@@ -65,6 +66,10 @@ Ryder implements the same *capabilities* with original code and design.
 | 4.7 | Share live trip | link to contacts | ✅ native share sheet with trip details |
 | 4.8 | SOS button | alerts + response desk | ✅ raises event → admin safety desk realtime |
 | 4.9 | Emergency contacts | up to N contacts | ✅ manage up to 5 in profile |
+| 4.9b | Ride preferences (Uber-style) | quiet/AC/help prefs | 🔵 5 prefs saved per rider, shown to driver on every offer |
+| 4.9c | Woman-driver preference (Uber/Rapido pink) | opt-in matching | 🔵 soft-filter matching: women partners offered first when in range; women seeded in fleet |
+| 4.9d | RideCheck / trip anomaly (Uber) | long-stop detection | 🔵 30s monitor: mid-trip stall >4 min pings rider + safety desk |
+| 4.9e | Favourite drivers | priority rematch | 🔵 star after rating → matcher ranks favourites 2 km closer |
 | 4.10 | Cancel w/ reason + fee rules | reason sheet, grace | ✅ fee after 60s grace · 🔵 reason-picker sheet |
 | 4.11 | Waiting-time meter after arrival | free window then ₹/min | ✅ 5 free min then per-category ₹/min, itemized |
 | 4.12 | Ola Play (in-car entertainment) | music/TV in Primes | ❌ out of scope — hardware program, not app software |
@@ -86,7 +91,7 @@ Ryder implements the same *capabilities* with original code and design.
 | # | Detail | Ola | Ryder |
 |---|---|---|---|
 | 6.1 | Wallet (Ola Money) | store value | ✅ double-entry ledger |
-| 6.2 | Topup via UPI/card | PSP | ✅ demo gateway; Razorpay order+webhook point marked |
+| 6.2 | Topup via UPI/card | PSP | 🔵 **real Razorpay orders + signed webhook credit when keyed**; demo credit fallback |
 | 6.3 | **Postpaid (pay later, settle monthly)** | credit limit, billed cycle | 🔵 Ryder Postpaid: ₹500 credit line, wallet may go negative within limit, settle via topup |
 | 6.4 | Transaction history | list | ✅ typed ledger w/ notes |
 | 6.5 | Refunds | to source/wallet | ✅ refund ledger type + admin path |
@@ -117,7 +122,7 @@ Ryder implements the same *capabilities* with original code and design.
 | 8.7 | **GoTo / preferred destination mode** | rides toward home, limited/day | 🔵 set GoTo pin → matcher prefers rides dropping near it; 2 activations/day |
 | 8.8 | **Driving-hours fatigue alert** | break reminders | 🔵 online-hours tracked; "take a break" banner past 8h |
 | 8.9 | Incentives (daily/weekly targets) | progress cards | 🟡 metrics live (trips/earnings/acceptance); target-card engine = growth phase |
-| 8.10 | Heatmap of demand | surge zones map | 🟡 admin has it; driver surfacing next |
+| 8.10 | Heatmap of demand | surge zones map | 🔵 "Demand right now" card in the driver app, refreshed while online |
 | 8.11 | Driver referral bonus | invite drivers | ✅ referral codes exist for drivers too |
 | 8.12 | In-app SOS + 24×7 support | button | ✅ SOS API works for drivers; ticket desk shared |
 | 8.13 | Fleet-operator app (multi-car owners) | separate app | ❌ deferred — B2B surface after core density |
@@ -137,7 +142,24 @@ idempotent money ✅ · backups/DR ✅ · CI ✅ · load-tested ✅
 
 ---
 
+## 11. Real integrations (env-key driven, graceful fallback)
+
+| Provider | Enables | Keys (see `.env.example`) | Without keys |
+|---|---|---|---|
+| Google Maps | real place search + road distance + traffic ETA (stops included) | `GOOGLE_MAPS_API_KEY` | builtin places + distance model |
+| Twilio | real OTP SMS (demo OTPs vanish from responses) | `TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM` | console OTP |
+| Razorpay | real topups: order → checkout → signed webhook → wallet credit (idempotent per payment) | `RAZORPAY_KEY_ID/KEY_SECRET/WEBHOOK_SECRET` | instant demo credit |
+
+Also compared against **Uber** and **Rapido** this round — sources:
+[Uber women's safety](https://www.uber.com/us/en/safety/womens-safety/) ·
+[Uber rider verification](https://www.uber.com/en-US/blog/rider-verification-feature/) ·
+[Uber RideCheck/safety](https://www.uber.com/us/en/safety/our-commitment/) ·
+[Rapido rider app](https://apps.apple.com/us/app/rapido-bike-taxi-auto-cabs/id1198464606) ·
+[Rapido Captain](https://play.google.com/store/apps/details?id=com.rapido.rider&hl=en_US)
+
 ### Scorecard after this round
-**58 capabilities shipped ✅/🔵 · 8 partial 🟡 · 6 deferred ❌ (each with a stated reason)**
+**68 capabilities shipped ✅/🔵 · 4 partial 🟡 · 5 deferred ❌ (each with a stated reason)**
+Remaining 🟡: pin-drag pickup (needs map tiles → key), masked calling (Twilio Proxy — next once SMS keys land), GST PDF invoices, Prime-Plus-style curated tier.
+Remaining ❌ (with reasons): in-app chat (needs push infra), i18n, fleet-operator app, in-car entertainment hardware, audio recording (device capability).
 
 *Sources: [Ola on Google Play](https://play.google.com/store/apps/details?id=com.olacabs.customer) · [Ola on the App Store](https://apps.apple.com/us/app/ola-book-cab-auto-bike-taxi/id539179365) · [olacabs.com](https://www.olacabs.com/) · [Ola Outstation](https://www.olacabs.com/features-outstation) · [Ola Driver on Google Play](https://play.google.com/store/apps/details?id=com.olacabs.oladriver&hl=en_IN) · [Inc42 on driver incentives](https://inc42.com/buzz/revamped-pay-incentives-bring-ola-drivers-back-to-the-platform/) · [TechCrunch on tipping](https://techcrunch.com/2020/06/29/indian-ride-hailing-giant-ola-adds-tipping-option-to-its-app-globally)*

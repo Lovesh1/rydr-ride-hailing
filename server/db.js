@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS users (
   referred_by TEXT,
   prime_until INTEGER DEFAULT 0,             -- Ryder Prime membership expiry
   postpaid_limit REAL DEFAULT 0,             -- Ryder Postpaid credit line (0 = not activated)
+  gender TEXT,                               -- optional; enables woman-driver preference matching
+  ride_prefs TEXT DEFAULT '{}',              -- JSON {quiet, ac, luggage_help, prefer_woman_driver, auto_share}
   created_at INTEGER NOT NULL
 );
 
@@ -174,6 +176,21 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS favourite_drivers (
+  user_id TEXT NOT NULL REFERENCES users(id),
+  driver_id TEXT NOT NULL REFERENCES users(id),
+  created_at INTEGER,
+  PRIMARY KEY (user_id, driver_id)
+);
+
+CREATE TABLE IF NOT EXISTS recent_places (
+  user_id TEXT NOT NULL REFERENCES users(id),
+  name TEXT NOT NULL,
+  lat REAL NOT NULL, lng REAL NOT NULL,
+  last_used INTEGER,
+  PRIMARY KEY (user_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS idempotency_keys (
   key TEXT PRIMARY KEY,               -- client-supplied Idempotency-Key header
   user_id TEXT NOT NULL,
@@ -249,13 +266,15 @@ export function seed() {
     ['Ravindra H.', 'suv', 'Toyota Innova', 'KA 01 SV 5566'],
     ['Sunitha K.', 'suv', 'Maruti Ertiga', 'KA 02 SV 8899'],
   ];
-  const ui = db.prepare('INSERT INTO users (id,phone,name,role,rating,rating_count,referral_code,created_at) VALUES (?,?,?,?,?,?,?,?)');
+  // seed gender for woman-driver preference matching (names ending patterns are demo-only)
+  const women = new Set(['Meena J.', 'Priya D.', 'Lakshmi R.', 'Divya S.', 'Sunitha K.', 'Sneha G.']);
+  const ui = db.prepare('INSERT INTO users (id,phone,name,role,rating,rating_count,referral_code,gender,created_at) VALUES (?,?,?,?,?,?,?,?,?)');
   const di = db.prepare(`INSERT INTO drivers (user_id,category,vehicle_make,plate,kyc_status,is_online,is_bot,lat,lng,
     acceptance_accepted,acceptance_offered,earnings_total,last_ping_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
   botNames.forEach(([name, cat, make, plate], i) => {
     const id = uid('usr');
     const rating = 4.5 + Math.random() * 0.5;
-    ui.run(id, `+9190000000${String(10 + i)}`, name, 'driver', Math.round(rating * 100) / 100, 500 + i * 37, refCode(), t);
+    ui.run(id, `+9190000000${String(10 + i)}`, name, 'driver', Math.round(rating * 100) / 100, 500 + i * 37, refCode(), women.has(name) ? 'female' : 'male', t);
     di.run(id, cat, make, plate, 'verified', 1, 1,
       BLR.lat + (Math.random() - 0.5) * 0.09, BLR.lng + (Math.random() - 0.5) * 0.09,
       420 + i * 11, 460 + i * 12, 84000 + i * 4000, t);
@@ -264,7 +283,7 @@ export function seed() {
   const pend = [['Ravi Kumar', 'auto', 'Bajaj RE', 'KA 05 NN 3141'], ['Sneha G.', 'mini', 'Renault Kwid', 'KA 03 GH 7772']];
   pend.forEach(([name, cat, make, plate], i) => {
     const id = uid('usr');
-    ui.run(id, `+9190000001${String(10 + i)}`, name, 'driver', 5.0, 0, refCode(), t);
+    ui.run(id, `+9190000001${String(10 + i)}`, name, 'driver', 5.0, 0, refCode(), women.has(name) ? 'female' : 'male', t);
     di.run(id, cat, make, plate, 'pending', 0, 0, BLR.lat, BLR.lng, 0, 0, 0, t);
   });
 

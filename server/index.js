@@ -8,7 +8,7 @@ import path from 'node:path';
 import { db } from './db.js';
 import { route } from './routes.js';
 import { startSim } from './sim.js';
-import { dispatchDueScheduled } from './rides.js';
+import { dispatchDueScheduled, rideCheckTick } from './rides.js';
 import { bad, json, authUser } from './lib.js';
 import { CONFIG } from './config.js';
 import { log } from './logger.js';
@@ -110,6 +110,7 @@ server.listen(CONFIG.port, () => {
     const n = dispatchDueScheduled();
     if (n) log.info('scheduler.dispatched', { rides: n });
   }, 15_000));
+  timers.push(setInterval(rideCheckTick, 30_000));
 });
 
 /* ---- graceful shutdown: stop taking traffic, drain, close DB ---- */

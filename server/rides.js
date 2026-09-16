@@ -95,9 +95,9 @@ function quoteFor(riderId, body) {
     return { fare: opt.fare, surge: 1, distKm: est.oneWayKm, durMin: est.durMin, breakdown: opt.breakdown };
   }
 
-  // city
+  // city — body._route carries a real routing-provider result when available
   const points = [body.pickup, ...(body.stops || []), body.drop];
-  const { distKm, durMin } = routeMetrics(points);
+  const { distKm, durMin } = body._route || routeMetrics(points);
   const { surge } = surgeAt(body.pickup.lat, body.pickup.lng);
   const f = cityFare(body.category, distKm, durMin, { surge, night: isNight(), prime });
   if (!f) throw new Error('unknown category');
@@ -164,26 +164,44 @@ function matchCategory(ride) { return ride.category; }
 
 function candidates(ride, tried, radiusKm) {
   const rows = db.prepare(`
-    SELECT d.user_id, d.lat, d.lng, d.goto_lat, d.goto_lng, d.goto_expires_at
+    SELECT d.user_id, d.lat, d.lng, d.goto_lat, d.goto_lng, d.goto_expires_at, u.gender
     FROM drivers d
     JOIN users u ON u.id = d.user_id
     WHERE d.is_online = 1 AND d.kyc_status = 'verified' AND d.current_ride_id IS NULL
       AND d.category = ? AND u.status = 'active'`).all(matchCategory(ride));
   const t = now();
-  return rows
+
+  // rider-side signals: preferences + favourite drivers
+  let prefs = {};
+  try {
+    prefs = JSON.parse(db.prepare('SELECT ride_prefs FROM users WHERE id = ?').get(ride.rider_id)?.ride_prefs || '{}');
+  } catch {}
+  const favs = new Set(
+    db.prepare('SELECT driver_id FROM favourite_drivers WHERE user_id = ?').all(ride.rider_id).map(r => r.driver_id));
+
+  const scored = rows
     .map(d => {
       const dist = haversineKm(ride.pickup_lat, ride.pickup_lng, d.lat, d.lng);
-      // GoTo mode: a driver whose active GoTo pin is near this ride's DROP gets a
-      // scoring bonus (ranked as if 3 km closer) — rides that take them home win.
       let score = dist;
+      // GoTo mode: drops near the driver's active pin rank as 3 km closer
       if (d.goto_lat != null && (d.goto_expires_at || 0) > t) {
         const dropToGoto = haversineKm(ride.drop_lat, ride.drop_lng, d.goto_lat, d.goto_lng);
-        if (dropToGoto <= 4) score = Math.max(0, dist - 3);
+        if (dropToGoto <= 4) score = Math.max(0, score - 3);
       }
+      // a favourited driver ranks as 2 km closer
+      if (favs.has(d.user_id)) score = Math.max(0, score - 2);
       return { ...d, dist, score };
     })
     .filter(d => d.dist <= radiusKm && !tried.has(d.user_id))
     .sort((a, b) => a.score - b.score);
+
+  // woman-driver preference: soft filter — if any woman partner is in range,
+  // offer only to women this wave; otherwise fall through to the full pool.
+  if (prefs.prefer_woman_driver) {
+    const women = scored.filter(d => d.gender === 'female');
+    if (women.length) return women;
+  }
+  return scored;
 }
 
 function nextOffer(rideId) {
@@ -213,8 +231,11 @@ function nextOffer(rideId) {
   db.prepare('UPDATE drivers SET acceptance_offered = acceptance_offered + 1 WHERE user_id = ?').run(drv.user_id);
 
   const view = rideView(rideId);
+  let riderPrefs = {};
+  try { riderPrefs = JSON.parse(db.prepare('SELECT ride_prefs FROM users WHERE id = ?').get(ride.rider_id)?.ride_prefs || '{}'); } catch {}
   emitTo(drv.user_id, 'offer', {
     ride: view,
+    rider_prefs: riderPrefs,
     pickup_dist_km: Math.round(drv.dist * 100) / 100,
     expires_in_ms: OFFER_TIMEOUT_MS,
   });
@@ -314,10 +335,50 @@ export function completeRide(rideId, driverId) {
     ledger(r.rider_id, 'promo_credit', 0, `promo ${r.promo_code} saved ₹${r.promo_discount}`, rideId);
   }
 
+  // remember the drop as a recent destination (city rides only, keep last 6)
+  if (r.type === 'city' && r.drop_addr) {
+    db.prepare(`INSERT INTO recent_places (user_id,name,lat,lng,last_used) VALUES (?,?,?,?,?)
+      ON CONFLICT(user_id,name) DO UPDATE SET last_used = ?`)
+      .run(r.rider_id, r.drop_addr, r.drop_lat, r.drop_lng, now(), now());
+    db.prepare(`DELETE FROM recent_places WHERE user_id = ? AND name NOT IN
+      (SELECT name FROM recent_places WHERE user_id = ? ORDER BY last_used DESC LIMIT 6)`)
+      .run(r.rider_id, r.rider_id);
+  }
+
   inc('ryder_business_events_total', { event: 'ride_completed', type: r.type });
   log.info('ride.completed', { ride: rideId, fare, driver: driverId, wait_min: r.waiting_min });
   pushRide(rideId);
   return rideView(rideId);
+}
+
+/* ============ RideCheck: anomaly monitor for ongoing trips ============
+   Detects a vehicle that hasn't moved meaningfully for a while mid-trip and
+   nudges the rider + safety desk. Runs from index.js on an interval. */
+const lastMove = new Map(); // rideId -> { lat, lng, since }
+const RIDECHECK_STALL_MS = 4 * 60 * 1000;
+const notifiedStall = new Set();
+
+export function rideCheckTick() {
+  const ongoing = db.prepare(`
+    SELECT r.id, r.rider_id, d.lat, d.lng FROM rides r
+    JOIN drivers d ON d.user_id = r.driver_id
+    WHERE r.status = 'ONGOING'`).all();
+  const live = new Set(ongoing.map(r => r.id));
+  for (const k of [...lastMove.keys()]) if (!live.has(k)) { lastMove.delete(k); notifiedStall.delete(k); }
+
+  for (const r of ongoing) {
+    const prev = lastMove.get(r.id);
+    if (!prev || haversineKm(prev.lat, prev.lng, r.lat, r.lng) > 0.12) {
+      lastMove.set(r.id, { lat: r.lat, lng: r.lng, since: now() });
+      continue;
+    }
+    if (now() - prev.since > RIDECHECK_STALL_MS && !notifiedStall.has(r.id)) {
+      notifiedStall.add(r.id);
+      emitTo(r.rider_id, 'ridecheck', { ride_id: r.id, kind: 'long_stop', msg: 'Your trip seems to have stopped for a while. Everything okay?' });
+      emitAdmins('ridecheck', { ride_id: r.id, kind: 'long_stop' });
+      log.warn('ridecheck.long_stop', { ride: r.id });
+    }
+  }
 }
 
 export function cancelRide(rideId, byUserId, byRole, reason) {

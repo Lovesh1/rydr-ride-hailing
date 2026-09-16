@@ -166,14 +166,14 @@ function SearchScreen({ navigation, route }) {
           <TouchableOpacity key={p.name} onPress={() => choose(p)}
             style={[S.row, { paddingVertical: 15, paddingHorizontal: 22, gap: 14, borderBottomWidth: 1, borderColor: C.hair }]}>
             <View style={{
-              width: 38, height: 38, borderRadius: 12, backgroundColor: C.sand,
+              width: 38, height: 38, borderRadius: 12, backgroundColor: p.recent ? C.mint : C.sand,
               alignItems: 'center', justifyContent: 'center',
             }}>
-              <Text style={{ color: C.gold }}>⌖</Text>
+              <Text style={{ color: p.recent ? C.emerald : C.gold }}>{p.recent ? '↺' : '⌖'}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[S.h3, { fontSize: 14.5 }]}>{p.name}</Text>
-              <Text style={S.mut}>Bengaluru</Text>
+              <Text style={S.mut}>{p.recent ? 'Recent destination' : 'Bengaluru'}</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -829,7 +829,16 @@ function RateScreen({ navigation, route }) {
   const { ride } = route.params;
   const [stars, setStars] = useState(5);
   const [tags, setTags] = useState([]);
+  const [faved, setFaved] = useState(false);
   const allTags = ['Immaculate car', 'Smooth route', 'Great conversation', 'Blissfully quiet'];
+
+  const favourite = async () => {
+    try {
+      await api.post('/api/favourites', { driver_id: ride.driver_id, remove: faved });
+      setFaved(!faved);
+      toast(faved ? 'Removed from favourites' : `${ride.driver_name} added to favourites — they'll get priority on your future rides`);
+    } catch (e) { toast(e.message, true); }
+  };
 
   const submit = async () => {
     try { await api.post(`/api/rides/${ride.id}/rate`, { stars, tags }); toast('Thank you — rating recorded'); }
@@ -875,7 +884,16 @@ function RateScreen({ navigation, route }) {
         })}
       </View>
 
-      <Btn title="Submit rating" onPress={submit} style={{ marginTop: 26, alignSelf: 'stretch' }} />
+      <TouchableOpacity onPress={favourite} style={[S.card, S.row, {
+        paddingVertical: 12, paddingHorizontal: 18, gap: 10, marginTop: 18,
+        borderColor: faved ? C.gold : C.hair, backgroundColor: faved ? C.goldSoft : C.surface,
+      }]}>
+        <Text style={{ fontSize: 16, color: faved ? C.gold : C.mut }}>{faved ? '★' : '☆'}</Text>
+        <Text style={{ fontFamily: F.uiBold, fontSize: 13, color: faved ? C.gold : C.inkSoft }}>
+          {faved ? 'Favourite driver' : 'Add to favourite drivers'}
+        </Text>
+      </TouchableOpacity>
+      <Btn title="Submit rating" onPress={submit} style={{ marginTop: 18, alignSelf: 'stretch' }} />
       <Btn title="Add ₹20 tip" kind="soft" onPress={() => tip(20)} style={{ marginTop: 10, alignSelf: 'stretch' }} />
       <Btn title="Skip" kind="ghost" onPress={() => navigation.popToTop()} style={{ marginTop: 10, alignSelf: 'stretch' }} />
     </ScrollView>
@@ -1072,6 +1090,11 @@ function WalletScreen() {
 /* =====================================================================
    PROFILE (referral, saved places, emergency contacts, support)
 ===================================================================== */
+const PREF_LABELS = {
+  quiet: '🤫 Quiet rides', ac: '❄ AC on, always', luggage_help: '🧳 Help with luggage',
+  prefer_woman_driver: '👩 Prefer woman driver', auto_share: '📡 Auto-share night trips',
+};
+
 function ProfileScreen({ onSignOut }) {
   const [me, setMe] = useState(null);
   const [ref, setRef] = useState(null);
@@ -1079,14 +1102,25 @@ function ProfileScreen({ onSignOut }) {
   const [contacts, setContacts] = useState([]);
   const [cName, setCName] = useState('');
   const [cPhone, setCPhone] = useState('');
+  const [prefs, setPrefs] = useState({});
+  const [favs, setFavs] = useState([]);
 
   const load = useCallback(async () => {
     setMe((await api.get('/api/me')).user);
     setRef(await api.get('/api/referral'));
     setSaved(await api.get('/api/saved-places'));
     setContacts(await api.get('/api/emergency-contacts'));
+    setPrefs(await api.get('/api/preferences'));
+    setFavs(await api.get('/api/favourites'));
   }, []);
   useEffect(() => { load(); }, []);
+
+  const togglePref = async (k) => {
+    const next = { ...prefs, [k]: !prefs[k] };
+    setPrefs(next);
+    try { await api.post('/api/preferences', next); }
+    catch (e) { toast(e.message, true); }
+  };
 
   const saveHome = async (label) => {
     const p = label === 'home'
@@ -1135,6 +1169,36 @@ function ProfileScreen({ onSignOut }) {
           <Btn title="Share" kind="dark" small onPress={shareCode} />
         </View>
       </View>
+
+      <View style={{ marginTop: 24, marginBottom: 22 }}>
+        <SectionTitle><Text style={S.h3}>Ride preferences</Text></SectionTitle>
+        <Text style={[S.mut, { marginBottom: 10 }]}>Shared with your driver on every trip. Woman-driver preference shapes matching when partners are nearby.</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
+          {Object.entries(PREF_LABELS).map(([k, label]) => {
+            const on = !!prefs[k];
+            return (
+              <TouchableOpacity key={k} onPress={() => togglePref(k)}
+                style={[S.card, { paddingVertical: 10, paddingHorizontal: 14, borderColor: on ? C.emerald : C.hair, backgroundColor: on ? C.mint : C.surface }]}>
+                <Text style={{ fontFamily: F.uiBold, fontSize: 12, color: on ? C.emeraldDark : C.mut }}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {favs.length > 0 && (
+        <View style={{ marginBottom: 22 }}>
+          <SectionTitle><Text style={S.h3}>Favourite drivers</Text></SectionTitle>
+          {favs.map(f => (
+            <View key={f.driver_id} style={[S.row, { paddingVertical: 8, justifyContent: 'space-between' }]}>
+              <Text style={S.body}>★ {f.name} · ★{(f.rating || 5).toFixed(2)} · {f.vehicle_make}</Text>
+              <TouchableOpacity onPress={async () => { await api.post('/api/favourites', { driver_id: f.driver_id, remove: true }); load(); }}>
+                <Text style={{ color: C.red, fontFamily: F.uiBold, fontSize: 12 }}>remove</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
 
       <SectionTitle right={null}><Text style={S.h3}>Saved places</Text></SectionTitle>
       <View style={[S.row, { gap: 9, flexWrap: 'wrap' }]}>
