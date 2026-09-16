@@ -1,7 +1,7 @@
 // server/routes.js — full REST API: auth, rider, driver, admin
 import { db, PLACES, refCode } from './db.js';
 import { uid, now, otp6, ok, bad, readBody, authUser, signToken, haversineKm } from './lib.js';
-import { estimateCity, estimateRentals, estimateOutstation, RATE_CARD } from './pricing.js';
+import { estimateCity, estimateRentals, estimateOutstation, estimateParcel, RATE_CARD } from './pricing.js';
 import {
   createRide, rideView, cancelRide, rateRide, ledger,
   acceptRide, declineRide, markArrived, startRide, completeRide, pendingOfferFor,
@@ -142,6 +142,11 @@ export async function route(req, res, url) {
     if (!pickup?.lat || !drop?.lat) return bad(res, 'pickup and drop required');
     return ok(res, estimateOutstation([pickup, drop], trip_type || 'oneway', me.id));
   }
+  if (p === '/api/fares/parcel' && m === 'POST') {
+    const { pickup, drop } = await readBody(req);
+    if (!pickup?.lat || !drop?.lat) return bad(res, 'pickup and drop required');
+    return ok(res, estimateParcel([pickup, drop], me.id));
+  }
 
   /* ================= RIDER ================= */
   if (p === '/api/rides' && m === 'POST') {
@@ -153,9 +158,11 @@ export async function route(req, res, url) {
       if (active) return bad(res, 'you already have an active ride');
       try {
         const r = createRide(me.id, body);
-        if ((body.payment_method === 'wallet' || !body.payment_method) && me.wallet_balance < r.fare_quoted) {
+        // Postpaid: the wallet may go negative up to the credit line
+        const spendable = me.wallet_balance + (me.postpaid_limit || 0);
+        if ((body.payment_method === 'wallet' || !body.payment_method) && spendable < r.fare_quoted) {
           cancelRide(r.id, me.id, 'rider', 'insufficient balance');
-          return bad(res, `insufficient wallet balance (₹${Math.round(me.wallet_balance)}) — top up or pay cash`);
+          return bad(res, `insufficient balance (₹${Math.round(me.wallet_balance)}${me.postpaid_limit ? ` + ₹${me.postpaid_limit} postpaid` : ''}) — top up or pay cash`);
         }
         inc('ryder_business_events_total', { event: 'ride_requested', type: r.type });
         if (store) store(r);
@@ -240,6 +247,15 @@ export async function route(req, res, url) {
     });
   }
 
+  /* ---------- postpaid credit line ---------- */
+  if (p === '/api/postpaid/activate' && m === 'POST') {
+    if (me.postpaid_limit > 0) return bad(res, 'Postpaid already active');
+    if (me.rides_count < 1) return bad(res, 'complete at least 1 ride to unlock Postpaid');
+    db.prepare('UPDATE users SET postpaid_limit = 500 WHERE id = ?').run(me.id);
+    inc('ryder_business_events_total', { event: 'postpaid_activated' });
+    return ok(res, { postpaid_limit: 500 });
+  }
+
   /* ---------- prime membership ---------- */
   if (p === '/api/prime/subscribe' && m === 'POST') {
     if ((me.prime_until || 0) > now()) return bad(res, 'already a Prime member');
@@ -315,10 +331,31 @@ export async function route(req, res, url) {
     if (p === '/api/driver/status' && m === 'POST') {
       const { online, lat, lng } = await readBody(req);
       if (online && d.kyc_status !== 'verified') return bad(res, `cannot go online — KYC status: ${d.kyc_status}`);
-      db.prepare('UPDATE drivers SET is_online = ?, lat = COALESCE(?, lat), lng = COALESCE(?, lng), last_ping_at = ? WHERE user_id = ?')
-        .run(online ? 1 : 0, lat, lng, now(), me.id);
+      db.prepare(`UPDATE drivers SET is_online = ?, lat = COALESCE(?, lat), lng = COALESCE(?, lng),
+          last_ping_at = ?, online_since = CASE WHEN ? = 1 AND is_online = 0 THEN ? ELSE online_since END
+          WHERE user_id = ?`)
+        .run(online ? 1 : 0, lat, lng, now(), online ? 1 : 0, now(), me.id);
+      if (!online) db.prepare('UPDATE drivers SET online_since = NULL WHERE user_id = ?').run(me.id);
       emitAdmins('driver_status', { driver_id: me.id, online: !!online });
       return ok(res, { online: !!online });
+    }
+
+    /* GoTo preferred-destination mode: 2 activations/day, 2h each */
+    if (p === '/api/driver/goto' && m === 'POST') {
+      const { lat, lng, clear } = await readBody(req);
+      if (clear) {
+        db.prepare('UPDATE drivers SET goto_lat = NULL, goto_lng = NULL, goto_expires_at = NULL WHERE user_id = ?').run(me.id);
+        return ok(res, { goto: null });
+      }
+      if (!lat || !lng) return bad(res, 'lat and lng required');
+      const today = new Date().toISOString().slice(0, 10);
+      const uses = d.goto_reset_day === today ? d.goto_uses_today : 0;
+      if (uses >= 2) return bad(res, 'GoTo limit reached — 2 activations per day');
+      const expires = now() + 2 * 3600 * 1000;
+      db.prepare(`UPDATE drivers SET goto_lat = ?, goto_lng = ?, goto_expires_at = ?,
+          goto_uses_today = ?, goto_reset_day = ? WHERE user_id = ?`)
+        .run(lat, lng, expires, uses + 1, today, me.id);
+      return ok(res, { goto: { lat, lng, expires_at: expires, uses_left_today: 1 - uses } });
     }
 
     if (p === '/api/driver/ping' && m === 'POST') {
@@ -354,11 +391,15 @@ export async function route(req, res, url) {
         WHERE user_id = ? AND amount > 0 AND created_at >= ?`).get(me.id, since).amt;
       const recent = db.prepare(`SELECT * FROM rides WHERE driver_id = ? AND status='COMPLETED' ORDER BY completed_at DESC LIMIT 10`).all(me.id);
       const acc = d.acceptance_offered ? Math.round(d.acceptance_accepted / d.acceptance_offered * 100) : 100;
+      const hoursOnline = d.is_online && d.online_since ? +((now() - d.online_since) / 3600000).toFixed(1) : 0;
+      const goto_active = d.goto_lat != null && (d.goto_expires_at || 0) > now();
       return ok(res, {
         driver: d, rating: me.rating, acceptance: acc,
         today: { trips: today.trips, earnings: earned(dayStart.getTime()) },
         week: { trips: week.trips, earnings: earned(weekStart) },
         balance: me.wallet_balance, recent,
+        hours_online: hoursOnline, fatigue_alert: hoursOnline >= 8,
+        goto: goto_active ? { lat: d.goto_lat, lng: d.goto_lng, expires_at: d.goto_expires_at } : null,
       });
     }
   }

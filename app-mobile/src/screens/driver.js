@@ -65,6 +65,21 @@ function DriveScreen() {
       const r = await api.post('/api/driver/status', { online: !online });
       setOnline(r.online);
       toast(r.online ? 'You are online — watching for requests' : 'You are offline');
+      setSum(await api.get('/api/driver/summary'));
+    } catch (e) { toast(e.message, true); }
+  };
+
+  const toggleGoto = async () => {
+    try {
+      if (sum?.goto) {
+        await api.post('/api/driver/goto', { clear: true });
+        toast('GoTo mode off');
+      } else {
+        // demo destination: HSR — a real app drops a pin on the map
+        const r = await api.post('/api/driver/goto', { lat: 12.9116, lng: 77.6474 });
+        toast(`GoTo set for 2h — rides toward your pin get priority (${r.goto.uses_left_today} activation left today)`);
+      }
+      setSum(await api.get('/api/driver/summary'));
     } catch (e) { toast(e.message, true); }
   };
 
@@ -213,6 +228,32 @@ function DriveScreen() {
           </View>
         ))}
       </View>
+
+      {sum?.fatigue_alert && (
+        <View style={[S.card, S.row, { marginTop: 14, padding: 16, gap: 12, backgroundColor: C.amberSoft, borderColor: '#EEDDBB' }]}>
+          <Text style={{ fontSize: 18 }}>😴</Text>
+          <Text style={[S.body, { flex: 1, fontSize: 13 }]}>
+            You've been online {sum.hours_online}h today. A short break keeps you and your riders safe.
+          </Text>
+        </View>
+      )}
+
+      <TouchableOpacity activeOpacity={0.9} onPress={toggleGoto}
+        style={[S.card, S.row, {
+          marginTop: 14, padding: 16, gap: 12,
+          backgroundColor: sum?.goto ? C.mint : C.surface,
+          borderColor: sum?.goto ? C.mintDeep : C.hair,
+        }]}>
+        <Text style={{ fontSize: 18 }}>🧭</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={S.h3}>GoTo destination {sum?.goto ? '· ON' : ''}</Text>
+          <Text style={[S.mut, { marginTop: 2 }]}>
+            {sum?.goto
+              ? 'Rides dropping near your pin get priority · tap to turn off'
+              : 'Heading somewhere? Get rides that take you toward it · 2×/day'}
+          </Text>
+        </View>
+      </TouchableOpacity>
 
       {/* offer modal */}
       <Modal visible={!!offer} transparent animationType="slide" onRequestClose={decline}>

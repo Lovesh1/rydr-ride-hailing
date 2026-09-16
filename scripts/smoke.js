@@ -113,6 +113,31 @@ try {
   const charge = w.data.transactions.find(t => t.type === 'ride_charge');
   assert(charge && Math.abs(charge.amount) === ride.fare_final, 'wallet charged final fare');
 
+  // parcel estimate (courier engine)
+  const parcel = await api('POST', '/api/fares/parcel', {
+    pickup: { lat: 12.9116, lng: 77.6474 }, drop: { lat: 12.9345, lng: 77.6192 },
+  });
+  assert(parcel.status === 200 && parcel.data.options.length === 3 && parcel.data.options[0].fare > 0,
+    `parcel pricing (small ₹${parcel.data.options[0].fare})`);
+
+  // postpaid unlocks after first ride and raises spendable balance
+  const pp = await api('POST', '/api/postpaid/activate');
+  assert(pp.status === 200 && pp.data.postpaid_limit === 500, 'postpaid credit line activated');
+  const pp2 = await api('POST', '/api/postpaid/activate');
+  assert(pp2.status === 400, 'postpaid double-activation refused');
+
+  // driver GoTo endpoint (login as bot fleet driver)
+  const riderToken = TOKEN;
+  const dOtp = await api('POST', '/api/auth/otp', { phone: '+919000000010' });
+  const dVer = await api('POST', '/api/auth/verify', { phone: '+919000000010', otp: dOtp.data.demo_otp });
+  TOKEN = dVer.data.token;
+  const goto1 = await api('POST', '/api/driver/goto', { lat: 12.9, lng: 77.6 });
+  assert(goto1.status === 200 && goto1.data.goto.expires_at > Date.now(), 'driver GoTo set');
+  const sum = await api('GET', '/api/driver/summary');
+  assert(sum.status === 200 && sum.data.goto, 'summary reflects GoTo + hours_online');
+  await api('POST', '/api/driver/goto', { clear: true });
+  TOKEN = riderToken;
+
   // rating
   const rate = await api('POST', `/api/rides/${ride.id}/rate`, { stars: 5, tags: ['smooth'] });
   assert(rate.status === 200, 'rating recorded');

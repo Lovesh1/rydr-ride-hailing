@@ -45,6 +45,34 @@ export const OUTSTATION_RATES = {
   suv:   { perKm: 18,   driverAllowancePerDay: 500, minKmPerDay: 300 },
 };
 
+/* ================= PARCEL (bike courier) =================
+   Size tiers cap weight; insurance-lite handling fee baked into base. */
+export const PARCEL_RATES = {
+  small:  { label: 'Small · up to 3 kg',  base: 30, baseKm: 1.5, perKm: 8,  minFare: 45 },
+  medium: { label: 'Medium · up to 7 kg', base: 40, baseKm: 1.5, perKm: 10, minFare: 60 },
+  large:  { label: 'Large · up to 12 kg', base: 55, baseKm: 1.5, perKm: 12, minFare: 80 },
+};
+
+export function estimateParcel(points, userId) {
+  const { distKm, durMin } = routeMetrics(points);
+  const prime = isPrime(userId);
+  const options = Object.entries(PARCEL_RATES).map(([size, r]) => {
+    const chargeableKm = Math.max(0, distKm - r.baseKm);
+    const distanceCharge = round2(chargeableKm * r.perKm);
+    let subtotal = Math.max(r.base + distanceCharge, r.minFare);
+    const primeDiscount = prime ? round2(subtotal * PRIME_DISCOUNT) : 0;
+    subtotal -= primeDiscount;
+    const gst = round2(subtotal * GST);
+    return {
+      size, label: r.label, emoji: '📦',
+      fare: rupees(subtotal + gst),
+      breakdown: { base_fare: r.base, distance_charge: distanceCharge,
+        prime_discount: -primeDiscount, gst },
+    };
+  });
+  return { type: 'parcel', distKm, durMin, prime, options };
+}
+
 const ROUTE_FACTOR = 1.35;    // road distance vs straight line
 const AVG_SPEED_KMH = 22;     // city average
 const OUTSTATION_SPEED = 55;

@@ -39,6 +39,7 @@ function HomeScreen({ navigation }) {
     { key: 'rental', title: 'Rentals', sub: 'by the hour', emoji: '⏱', onPress: () => navigation.navigate('Rentals') },
     { key: 'outstation', title: 'Outstation', sub: 'city to city', emoji: '🛣', onPress: () => navigation.navigate('Outstation') },
     { key: 'schedule', title: 'Schedule', sub: 'book ahead', emoji: '🗓', onPress: () => navigation.navigate('Search', { mode: 'schedule' }) },
+    { key: 'parcel', title: 'Parcel', sub: 'send packages', emoji: '📦', onPress: () => navigation.navigate('Parcel') },
   ];
 
   return (
@@ -193,11 +194,24 @@ function FareScreen({ navigation, route }) {
   const [showBreak, setShowBreak] = useState(false);
   const [when, setWhen] = useState(null);        // scheduled_at
   const [busy, setBusy] = useState(false);
+  const [stops, setStops] = useState([]);        // multi-stop (max 2)
+  const [stopPick, setStopPick] = useState(false);
+  const [stopChoices, setStopChoices] = useState([]);
+  const [forGuest, setForGuest] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [corporate, setCorporate] = useState(false);
+  const [expenseCode, setExpenseCode] = useState('');
 
   useEffect(() => { (async () => {
-    try { setEst(await api.post('/api/fares/estimate', { pickup: HSR, drop })); }
+    try { setEst(await api.post('/api/fares/estimate', { pickup: HSR, drop, stops })); }
     catch (e) { toast(e.message, true); }
-  })(); }, []);
+  })(); }, [stops]);
+
+  const openStopPicker = async () => {
+    setStopChoices((await api.get('/api/places?q=')).filter(p => p.name !== drop.name).slice(0, 6));
+    setStopPick(true);
+  };
 
   const sel = est?.options.find(o => o.category === cat) || est?.options?.[1];
 
@@ -210,10 +224,15 @@ function FareScreen({ navigation, route }) {
   const book = async () => {
     setBusy(true);
     try {
+      if (forGuest && (!guestName || !guestPhone)) { toast('Guest name and phone needed', true); setBusy(false); return; }
       const r = await api.post('/api/rides', {
-        pickup: HSR, drop, category: sel.category, payment_method: pay,
+        pickup: HSR, drop, stops, category: sel.category, payment_method: pay,
         promo_code: promo || undefined,
         scheduled_at: mode === 'schedule' ? when : undefined,
+        guest_name: forGuest ? guestName : undefined,
+        guest_phone: forGuest ? guestPhone : undefined,
+        is_corporate: corporate || undefined,
+        expense_code: corporate && expenseCode ? expenseCode : undefined,
         type: 'city',
       });
       if (r.status === 'SCHEDULED') {
@@ -287,6 +306,46 @@ function FareScreen({ navigation, route }) {
         )}
       </View>
 
+      {/* multi-stop */}
+      <View style={[S.row, S.pad, { gap: 8, marginTop: 6, flexWrap: 'wrap' }]}>
+        {stops.map((st, i) => (
+          <TouchableOpacity key={st.name} onPress={() => setStops(stops.filter((_, j) => j !== i))}
+            style={[S.card, S.row, { paddingVertical: 8, paddingHorizontal: 13, gap: 7, borderColor: C.mintDeep, backgroundColor: C.mint }]}>
+            <Text style={{ fontFamily: F.uiBold, fontSize: 11.5, color: C.emeraldDark }}>◦ {st.name.split(',')[0]}</Text>
+            <Text style={{ color: C.red, fontSize: 11 }}>✕</Text>
+          </TouchableOpacity>
+        ))}
+        {stops.length < 2 && (
+          <TouchableOpacity onPress={openStopPicker}
+            style={[S.card, { paddingVertical: 8, paddingHorizontal: 13 }]}>
+            <Text style={{ fontFamily: F.uiBold, fontSize: 11.5, color: C.emerald }}>+ Add stop</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* guest + corporate toggles */}
+      <View style={[S.row, S.pad, { gap: 9, marginTop: 10 }]}>
+        <TouchableOpacity onPress={() => setForGuest(!forGuest)}
+          style={[S.card, { flex: 1, padding: 12, alignItems: 'center', borderColor: forGuest ? C.emerald : C.hair, backgroundColor: forGuest ? C.mint : C.surface }]}>
+          <Text style={{ fontFamily: F.uiBold, fontSize: 12, color: forGuest ? C.emeraldDark : C.mut }}>👤 For someone else</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setCorporate(!corporate)}
+          style={[S.card, { flex: 1, padding: 12, alignItems: 'center', borderColor: corporate ? C.violet : C.hair, backgroundColor: corporate ? C.violetSoft : C.surface }]}>
+          <Text style={{ fontFamily: F.uiBold, fontSize: 12, color: corporate ? C.violet : C.mut }}>💼 Corporate</Text>
+        </TouchableOpacity>
+      </View>
+      {forGuest && (
+        <View style={[S.row, S.pad, { gap: 9, marginTop: 9 }]}>
+          <Input placeholder="Guest name" value={guestName} onChangeText={setGuestName} style={{ flex: 1, paddingVertical: 12 }} />
+          <Input placeholder="Guest phone" value={guestPhone} onChangeText={setGuestPhone} keyboardType="phone-pad" style={{ flex: 1, paddingVertical: 12 }} />
+        </View>
+      )}
+      {corporate && (
+        <View style={[S.pad, { marginTop: 9 }]}>
+          <Input placeholder="Expense / project code (optional)" value={expenseCode} onChangeText={setExpenseCode} style={{ paddingVertical: 12 }} />
+        </View>
+      )}
+
       {mode === 'schedule' && (
         <View style={[S.pad, { marginTop: 8 }]}>
           <Micro>PICK A TIME</Micro>
@@ -329,6 +388,23 @@ function FareScreen({ navigation, route }) {
           disabled={busy || !sel || (mode === 'schedule' && !when)}
         />
       </View>
+
+      {/* stop picker modal */}
+      <Modal visible={stopPick} transparent animationType="slide" onRequestClose={() => setStopPick(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: '#18242066' }} activeOpacity={1} onPress={() => setStopPick(false)} />
+        <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '60%' }}>
+          <Micro color={C.gold}>ADD A STOP</Micro>
+          <ScrollView style={{ marginTop: 10 }}>
+            {stopChoices.filter(p => !stops.find(s => s.name === p.name)).map(p => (
+              <TouchableOpacity key={p.name}
+                onPress={() => { setStops([...stops, p]); setStopPick(false); }}
+                style={[S.row, { paddingVertical: 13, gap: 12, borderBottomWidth: 1, borderColor: C.hair }]}>
+                <Text>◦</Text><Text style={[S.h3, { fontSize: 14 }]}>{p.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* fare breakdown modal */}
       <Modal visible={showBreak} transparent animationType="slide" onRequestClose={() => setShowBreak(false)}>
@@ -506,6 +582,83 @@ function OutstationScreen({ navigation }) {
 }
 
 /* =====================================================================
+   PARCEL — bike courier: size tier + sender/receiver, delivery OTP
+===================================================================== */
+function ParcelScreen({ navigation }) {
+  const [dest, setDest] = useState(null);
+  const [places, setPlaces] = useState([]);
+  const [est, setEst] = useState(null);
+  const [size, setSize] = useState('small');
+  const [sender, setSender] = useState('');
+  const [receiver, setReceiver] = useState('');
+  const [rPhone, setRPhone] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { (async () => setPlaces((await api.get('/api/places?q=')).slice(0, 6)))(); }, []);
+  useEffect(() => { if (dest) (async () => {
+    setEst(await api.post('/api/fares/parcel', { pickup: HSR, drop: dest }));
+  })(); }, [dest]);
+
+  const opt = est?.options.find(o => o.size === size);
+
+  const book = async () => {
+    if (!receiver || !rPhone) return toast('Receiver name and phone needed', true);
+    setBusy(true);
+    try {
+      const r = await api.post('/api/rides', {
+        pickup: HSR, drop: dest, category: 'bike', type: 'parcel', parcel_size: size,
+        parcel: { sender: sender || 'Me', receiver, receiver_phone: rPhone },
+        payment_method: 'wallet',
+      });
+      toast('Courier booked — share the OTP with the receiver');
+      navigation.replace('Ride', { rideId: r.id });
+    } catch (e) { toast(e.message, true); }
+    setBusy(false);
+  };
+
+  return (
+    <ScrollView style={S.screen} contentContainerStyle={{ padding: 22, paddingBottom: 34 }}>
+      <Micro color={C.gold}>RYDER PARCEL</Micro>
+      <Text style={[S.h2, { marginTop: 8 }]}>Send it <Text style={S.serif}>across town.</Text></Text>
+      <Text style={[S.body, { marginTop: 8 }]}>A verified bike partner picks it up and delivers it. The receiver confirms with your delivery code.</Text>
+
+      <Micro style={{ marginTop: 20 }}>DELIVER TO</Micro>
+      {places.map(p => (
+        <TouchableOpacity key={p.name} onPress={() => setDest(p)}
+          style={[S.card, S.row, { padding: 13, marginTop: 8, gap: 12, borderColor: dest?.name === p.name ? C.emerald : C.hair, backgroundColor: dest?.name === p.name ? C.mint : C.surface }]}>
+          <Text>📍</Text><Text style={[S.h3, { flex: 1, fontSize: 13.5 }]}>{p.name}</Text>
+        </TouchableOpacity>
+      ))}
+
+      {est && (
+        <>
+          <Micro style={{ marginTop: 20 }}>PACKAGE SIZE</Micro>
+          {est.options.map(o => (
+            <TouchableOpacity key={o.size} onPress={() => setSize(o.size)}
+              style={[S.card, S.row, { padding: 14, marginTop: 8, gap: 12, borderColor: size === o.size ? C.emerald : C.hair, backgroundColor: size === o.size ? C.mint : C.surface }]}>
+              <Text style={{ fontSize: 20 }}>📦</Text>
+              <Text style={[S.h3, { flex: 1, fontSize: 14 }]}>{o.label}</Text>
+              <Text style={{ fontFamily: F.uiHeavy, fontSize: 16 }}>{inr(o.fare)}</Text>
+            </TouchableOpacity>
+          ))}
+
+          <Micro style={{ marginTop: 20 }}>DETAILS</Micro>
+          <Input placeholder="Sender name (optional)" value={sender} onChangeText={setSender} style={{ marginTop: 10 }} />
+          <Input placeholder="Receiver name" value={receiver} onChangeText={setReceiver} style={{ marginTop: 10 }} />
+          <Input placeholder="Receiver phone" value={rPhone} onChangeText={setRPhone} keyboardType="phone-pad" style={{ marginTop: 10 }} />
+
+          <Btn title={busy ? 'Booking…' : `Book courier · ${inr(opt?.fare)}`} onPress={book}
+            disabled={busy || !opt} style={{ marginTop: 20 }} />
+          <Text style={[S.mut, { textAlign: 'center', marginTop: 12 }]}>
+            {est.distKm} km · no cash on delivery · prohibited items list applies
+          </Text>
+        </>
+      )}
+    </ScrollView>
+  );
+}
+
+/* =====================================================================
    LIVE RIDE
 ===================================================================== */
 const ST_LABEL = {
@@ -514,9 +667,15 @@ const ST_LABEL = {
 };
 const ST_STEP = { SEARCHING: 0, ACCEPTED: 1, ARRIVED: 2, ONGOING: 3 };
 
+const CANCEL_REASONS = [
+  'Driver is too far away', 'Plans changed', 'Booked by mistake',
+  'Driver asked to cancel', 'Wait time too long', 'Found another ride',
+];
+
 function RideScreen({ navigation, route }) {
   const { rideId } = route.params;
   const [ride, setRide] = useState(null);
+  const [showCancel, setShowCancel] = useState(false);
 
   usePoll(async () => {
     const r = await api.get('/api/rides/' + rideId);
@@ -551,8 +710,9 @@ function RideScreen({ navigation, route }) {
     try { await Share.share({ message: `Tracking my Ryder trip ${ride.id} — driver ${ride.driver_name} (${ride.plate}).` }); }
     catch { toast('Trip details ready to share'); }
   };
-  const cancel = async () => {
-    try { await api.post(`/api/rides/${ride.id}/cancel`, { reason: 'rider cancelled' }); }
+  const cancel = async (reason) => {
+    setShowCancel(false);
+    try { await api.post(`/api/rides/${ride.id}/cancel`, { reason: reason || 'rider cancelled' }); }
     catch (e) { toast(e.message, true); }
   };
 
@@ -575,7 +735,7 @@ function RideScreen({ navigation, route }) {
         <View style={{ alignItems: 'center', paddingTop: 44 }}>
           <Radar />
           <Text style={[S.body, { marginTop: 20 }]}>Reaching the nearest partners…</Text>
-          <Btn title="Cancel request" kind="ghost" onPress={cancel} style={{ marginTop: 30 }} />
+          <Btn title="Cancel request" kind="ghost" onPress={() => cancel('cancelled while searching')} style={{ marginTop: 30 }} />
         </View>
       ) : (
         <>
@@ -625,13 +785,39 @@ function RideScreen({ navigation, route }) {
             <Text style={[S.mut, { flex: 1 }]}>{ride.pickup_addr} → {ride.drop_addr}</Text>
             <Text style={{ fontFamily: F.uiHeavy, fontSize: 17 }}>{inr(ride.fare_quoted)}</Text>
           </View>
+          {(ride.guest_name || ride.parcel_details) && (
+            <View style={[S.card, { marginHorizontal: 22, marginTop: 12, padding: 14, backgroundColor: C.violetSoft, borderColor: '#DCD6F2' }]}>
+              {ride.guest_name && (
+                <Text style={[S.body, { fontSize: 13 }]}>👤 Booked for <Text style={{ fontFamily: F.uiBold }}>{ride.guest_name}</Text> · {ride.guest_phone}</Text>
+              )}
+              {ride.parcel_details && (
+                <Text style={[S.body, { fontSize: 13 }]}>📦 To <Text style={{ fontFamily: F.uiBold }}>{ride.parcel_details.receiver}</Text> · {ride.parcel_details.receiver_phone} — they confirm delivery with your code</Text>
+              )}
+            </View>
+          )}
           {ride.status !== 'ONGOING' && (
             <View style={[S.pad, { marginTop: 12 }]}>
-              <Btn title="Cancel ride" kind="ghost" onPress={cancel} />
+              <Btn title="Cancel ride" kind="ghost" onPress={() => setShowCancel(true)} />
             </View>
           )}
         </>
       )}
+
+      {/* cancel-reason sheet */}
+      <Modal visible={showCancel} transparent animationType="slide" onRequestClose={() => setShowCancel(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: '#18242066' }} activeOpacity={1} onPress={() => setShowCancel(false)} />
+        <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 }}>
+          <Micro color={C.gold}>WHY ARE YOU CANCELLING?</Micro>
+          <Text style={[S.mut, { marginTop: 6 }]}>A ₹30 fee applies more than a minute after your driver accepts.</Text>
+          {CANCEL_REASONS.map(r => (
+            <TouchableOpacity key={r} onPress={() => cancel(r)}
+              style={[S.row, { paddingVertical: 14, borderBottomWidth: 1, borderColor: C.hair }]}>
+              <Text style={[S.h3, { fontSize: 14 }]}>{r}</Text>
+            </TouchableOpacity>
+          ))}
+          <Btn title="Keep my ride" kind="soft" onPress={() => setShowCancel(false)} style={{ marginTop: 16 }} />
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -703,6 +889,7 @@ function TripsScreen() {
   const [rides, setRides] = useState([]);
   const [scheduled, setScheduled] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [receipt, setReceipt] = useState(null);   // ride whose receipt is open
 
   const load = useCallback(async () => {
     setRides(await api.get('/api/rides'));
@@ -738,18 +925,50 @@ function TripsScreen() {
         </>
       )}
 
-      <Micro style={{ marginTop: 20 }}>HISTORY</Micro>
+      <Micro style={{ marginTop: 20 }}>HISTORY · tap a trip for its receipt</Micro>
       {rides.filter(r => r.status !== 'SCHEDULED').map(r => (
-        <View key={r.id} style={[S.card, { padding: 16, marginTop: 10 }]}>
+        <TouchableOpacity key={r.id} activeOpacity={0.85}
+          onPress={() => r.status === 'COMPLETED' && setReceipt(r)}
+          style={[S.card, { padding: 16, marginTop: 10 }]}>
           <View style={[S.row, { justifyContent: 'space-between' }]}>
             <Text style={S.h3}>{inr(r.fare_final ?? r.fare_quoted)} · {r.type === 'city' ? r.category : r.type}</Text>
             <Pill text={r.status} tone={tone[r.status] || 'gold'} />
           </View>
           <Text style={[S.mut, { marginTop: 6 }]}>● {r.pickup_addr}</Text>
           <Text style={S.mut}>⚑ {r.drop_addr} · {timeAgo(r.requested_at)}</Text>
-        </View>
+        </TouchableOpacity>
       ))}
       {rides.length === 0 && <Text style={[S.mut, { marginTop: 16 }]}>Your journeys will appear here.</Text>}
+
+      {/* itemized receipt */}
+      <Modal visible={!!receipt} transparent animationType="slide" onRequestClose={() => setReceipt(null)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: '#18242066' }} activeOpacity={1} onPress={() => setReceipt(null)} />
+        <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 26 }}>
+          <Micro color={C.gold}>RECEIPT · {receipt?.id}</Micro>
+          <Text style={[S.mut, { marginTop: 6 }]}>{receipt?.pickup_addr} → {receipt?.drop_addr}</Text>
+          {receipt?.fare_breakdown && Object.entries(receipt.fare_breakdown).map(([k, v]) => {
+            if (k === 'surge_multiplier' || (!v && !['base_fare', 'gst'].includes(k))) return null;
+            return (
+              <View key={k} style={[S.row, { justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderColor: C.hair }]}>
+                <Text style={[S.body, { textTransform: 'capitalize' }]}>{k.replace(/_/g, ' ')}</Text>
+                <Text style={{ fontFamily: F.uiBold, color: v < 0 ? C.emerald : C.ink }}>{v < 0 ? '−' : ''}{inr(Math.abs(v))}</Text>
+              </View>
+            );
+          })}
+          {receipt?.promo_discount > 0 && (
+            <View style={[S.row, { justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderColor: C.hair }]}>
+              <Text style={S.body}>Promo ({receipt.promo_code})</Text>
+              <Text style={{ fontFamily: F.uiBold, color: C.emerald }}>−{inr(receipt.promo_discount)}</Text>
+            </View>
+          )}
+          <View style={[S.row, { justifyContent: 'space-between', paddingTop: 14 }]}>
+            <Text style={S.h3}>Paid via {receipt?.payment_method}</Text>
+            <Text style={{ fontFamily: F.uiHeavy, fontSize: 22, color: C.emerald }}>{inr(receipt?.fare_final)}</Text>
+          </View>
+          {receipt?.is_corporate ? <Pill text={`CORPORATE${receipt.expense_code ? ' · ' + receipt.expense_code : ''}`} tone="vi" style={{ marginTop: 12 }} /> : null}
+          <Btn title="Done" kind="soft" onPress={() => setReceipt(null)} style={{ marginTop: 18 }} />
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -773,6 +992,10 @@ function WalletScreen() {
   };
   const joinPrime = async () => {
     try { await api.post('/api/prime/subscribe'); toast('Welcome to Ryder Prime ✦ Zero surge, 10% off'); load(); }
+    catch (e) { toast(e.message, true); }
+  };
+  const activatePostpaid = async () => {
+    try { await api.post('/api/postpaid/activate'); toast('Ryder Postpaid active — ride now, settle later'); load(); }
     catch (e) { toast(e.message, true); }
   };
 
@@ -808,6 +1031,22 @@ function WalletScreen() {
           </View>
           {!isPrime && <Btn title="Join" kind="gold" small onPress={joinPrime} />}
           {isPrime && <Pill text="ACTIVE" tone="gold" />}
+        </View>
+      </View>
+
+      <View style={[S.card, { marginTop: 14, padding: 20, backgroundColor: C.violetSoft, borderColor: '#DCD6F2' }]}>
+        <View style={[S.row, { justifyContent: 'space-between' }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[S.h3, { color: C.violet }]}>Ryder Postpaid</Text>
+            <Text style={[S.mut, { marginTop: 4 }]}>
+              {me?.postpaid_limit > 0
+                ? `₹${me.postpaid_limit} credit line active — balance can dip below zero, settle any time`
+                : 'Ride now, settle later — ₹500 credit line after your first ride'}
+            </Text>
+          </View>
+          {me?.postpaid_limit > 0
+            ? <Pill text="ACTIVE" tone="vi" />
+            : <Btn title="Activate" kind="dark" small onPress={activatePostpaid} />}
         </View>
       </View>
 
@@ -948,6 +1187,7 @@ function RideFlow() {
       <Stack.Screen name="Fare" component={FareScreen} options={{ title: 'Choose your ride' }} />
       <Stack.Screen name="Rentals" component={RentalsScreen} options={{ title: 'Rentals' }} />
       <Stack.Screen name="Outstation" component={OutstationScreen} options={{ title: 'Outstation' }} />
+      <Stack.Screen name="Parcel" component={ParcelScreen} options={{ title: 'Send a parcel' }} />
       <Stack.Screen name="Ride" component={RideScreen} options={{ title: 'Your ride', headerBackVisible: false }} />
       <Stack.Screen name="Rate" component={RateScreen} options={{ headerShown: false }} />
     </Stack.Navigator>

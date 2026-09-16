@@ -5,7 +5,7 @@ import { uid, now, otp4, haversineKm, rupees, round2 } from './lib.js';
 import {
   cityFare, routeMetrics, surgeAt, applyPromo, isNight, isPrime,
   RATE_CARD, RENTAL_PACKAGES, RENTAL_RATES, OUTSTATION_RATES,
-  estimateOutstation,
+  estimateOutstation, estimateParcel,
 } from './pricing.js';
 import { emitTo, emitAdmins } from './events.js';
 import { inc } from './metrics.js';
@@ -47,6 +47,7 @@ export function rideView(rideId) {
   if (r) {
     try { r.fare_breakdown = JSON.parse(r.fare_breakdown || 'null'); } catch {}
     try { r.stops = JSON.parse(r.stops || '[]'); } catch {}
+    try { r.parcel_details = JSON.parse(r.parcel_details || 'null'); } catch {}
   }
   return r;
 }
@@ -79,6 +80,13 @@ function quoteFor(riderId, body) {
     };
   }
 
+  if (type === 'parcel') {
+    const est = estimateParcel([body.pickup, body.drop], riderId);
+    const opt = est.options.find(o => o.size === (body.parcel_size || 'small'));
+    if (!opt) throw new Error('unknown parcel size');
+    return { fare: opt.fare, surge: 1, distKm: est.distKm, durMin: est.durMin, breakdown: opt.breakdown };
+  }
+
   if (type === 'outstation') {
     const est = estimateOutstation(
       [body.pickup, ...(body.stops || []), body.drop], body.trip_type || 'oneway', riderId);
@@ -106,19 +114,27 @@ export function createRide(riderId, body) {
 
   const isScheduled = scheduled_at && scheduled_at > now() + 60000;
   const id = uid('R');
+  // parcels ride on the bike fleet regardless of requested "category"
+  const cat = body.type === 'parcel' ? 'bike' : category;
   db.prepare(`INSERT INTO rides (id,rider_id,category,type,trip_type,package_id,status,
       pickup_lat,pickup_lng,pickup_addr,drop_lat,drop_lng,drop_addr,stops,otp,
       distance_km,duration_min,fare_quoted,fare_breakdown,surge,
-      promo_code,promo_discount,payment_method,scheduled_at,requested_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-    id, riderId, category, body.type || 'city', body.trip_type || null, body.package_id || null,
+      promo_code,promo_discount,payment_method,
+      guest_name,guest_phone,is_corporate,expense_code,parcel_details,
+      scheduled_at,requested_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    id, riderId, cat, body.type || 'city', body.trip_type || null, body.package_id || null,
     isScheduled ? 'SCHEDULED' : 'SEARCHING',
     pickup.lat, pickup.lng, pickup.name || 'Pickup',
     drop?.lat ?? pickup.lat, drop?.lng ?? pickup.lng, drop?.name || (body.type === 'rental' ? 'As directed (rental)' : 'Drop'),
     JSON.stringify(body.stops || []), otp4(),
     q.distKm, q.durMin, q.fare - discount, JSON.stringify(q.breakdown), q.surge,
     promo_code ? promo_code.toUpperCase() : null, discount,
-    payment_method || 'wallet', isScheduled ? scheduled_at : null, now());
+    payment_method || 'wallet',
+    body.guest_name || null, body.guest_phone || null,
+    body.is_corporate ? 1 : 0, body.expense_code || null,
+    body.parcel ? JSON.stringify(body.parcel) : null,
+    isScheduled ? scheduled_at : null, now());
 
   if (!isScheduled) {
     offers.set(id, { driverId: null, timer: null, wave: 0, tried: new Set() });
@@ -148,14 +164,26 @@ function matchCategory(ride) { return ride.category; }
 
 function candidates(ride, tried, radiusKm) {
   const rows = db.prepare(`
-    SELECT d.user_id, d.lat, d.lng FROM drivers d
+    SELECT d.user_id, d.lat, d.lng, d.goto_lat, d.goto_lng, d.goto_expires_at
+    FROM drivers d
     JOIN users u ON u.id = d.user_id
     WHERE d.is_online = 1 AND d.kyc_status = 'verified' AND d.current_ride_id IS NULL
       AND d.category = ? AND u.status = 'active'`).all(matchCategory(ride));
+  const t = now();
   return rows
-    .map(d => ({ ...d, dist: haversineKm(ride.pickup_lat, ride.pickup_lng, d.lat, d.lng) }))
+    .map(d => {
+      const dist = haversineKm(ride.pickup_lat, ride.pickup_lng, d.lat, d.lng);
+      // GoTo mode: a driver whose active GoTo pin is near this ride's DROP gets a
+      // scoring bonus (ranked as if 3 km closer) — rides that take them home win.
+      let score = dist;
+      if (d.goto_lat != null && (d.goto_expires_at || 0) > t) {
+        const dropToGoto = haversineKm(ride.drop_lat, ride.drop_lng, d.goto_lat, d.goto_lng);
+        if (dropToGoto <= 4) score = Math.max(0, dist - 3);
+      }
+      return { ...d, dist, score };
+    })
     .filter(d => d.dist <= radiusKm && !tried.has(d.user_id))
-    .sort((a, b) => a.dist - b.dist);
+    .sort((a, b) => a.score - b.score);
 }
 
 function nextOffer(rideId) {

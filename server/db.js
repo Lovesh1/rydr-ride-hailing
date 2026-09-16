@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
   referral_code TEXT UNIQUE,
   referred_by TEXT,
   prime_until INTEGER DEFAULT 0,             -- Ryder Prime membership expiry
+  postpaid_limit REAL DEFAULT 0,             -- Ryder Postpaid credit line (0 = not activated)
   created_at INTEGER NOT NULL
 );
 
@@ -51,7 +52,12 @@ CREATE TABLE IF NOT EXISTS drivers (
   acceptance_accepted INTEGER DEFAULT 0,
   acceptance_offered INTEGER DEFAULT 0,
   earnings_total REAL DEFAULT 0,
-  last_ping_at INTEGER
+  last_ping_at INTEGER,
+  online_since INTEGER,                      -- for driving-hours fatigue alerts
+  goto_lat REAL, goto_lng REAL,              -- GoTo preferred-destination mode
+  goto_expires_at INTEGER,
+  goto_uses_today INTEGER DEFAULT 0,
+  goto_reset_day TEXT
 );
 
 CREATE TABLE IF NOT EXISTS rides (
@@ -74,6 +80,10 @@ CREATE TABLE IF NOT EXISTS rides (
   waiting_min REAL DEFAULT 0,
   promo_code TEXT, promo_discount REAL DEFAULT 0,
   payment_method TEXT DEFAULT 'wallet',
+  guest_name TEXT, guest_phone TEXT,         -- "book for someone else"
+  is_corporate INTEGER DEFAULT 0,            -- corporate ride tag
+  expense_code TEXT,
+  parcel_details TEXT,                       -- JSON {sender,receiver,size,note} for type=parcel
   scheduled_at INTEGER,
   cancel_reason TEXT, cancelled_by TEXT,
   requested_at INTEGER, accepted_at INTEGER, arrived_at INTEGER,
