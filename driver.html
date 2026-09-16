@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RYDR — Driver Partner App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0f; --panel:#12121a; --card:rgba(255,255,255,.05);
+  --stroke:rgba(255,255,255,.09); --txt:#f4f4f6; --mut:#9a9aa8;
+  --lime:#c8ff2e; --violet:#8b5cf6; --pink:#ff5ec8; --cyan:#38e1ff; --red:#ff5470; --amber:#ffc53d;
+  --disp:'Space Grotesk',sans-serif; --ui:'Inter',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font-family:var(--ui);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px 16px;
+  background-image:radial-gradient(circle at 85% 15%,rgba(200,255,46,.08),transparent 45%),radial-gradient(circle at 10% 85%,rgba(139,92,246,.12),transparent 45%)}
+::selection{background:var(--lime);color:#000}
+
+.shell{width:100%;max-width:1100px;display:grid;grid-template-columns:1fr 390px;gap:40px;align-items:start}
+.side h1{font-family:var(--disp);font-size:40px;letter-spacing:-1.5px;line-height:1.05}
+.side h1 em{font-style:normal;color:var(--lime)}
+.side p{color:var(--mut);margin:16px 0 26px;line-height:1.65;font-size:15px}
+.side a{color:var(--cyan);text-decoration:none;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.chip{font-size:12.5px;padding:8px 14px;border-radius:999px;border:1px solid var(--stroke);background:var(--card);color:var(--mut)}
+
+.phone{width:390px;height:790px;border-radius:48px;border:1px solid var(--stroke);background:#0d0d13;
+  box-shadow:0 40px 100px rgba(0,0,0,.65),0 0 90px rgba(200,255,46,.09);overflow:hidden;display:flex;flex-direction:column;margin:0 auto}
+.status{display:flex;justify-content:space-between;padding:14px 26px 8px;font-size:12.5px;font-weight:600;color:var(--mut)}
+.app{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;overflow-y:auto;scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+.screen.on{display:flex}
+.pad{padding:16px 20px 28px}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 8px}
+.hdr h2{font-family:var(--disp);font-size:22px;letter-spacing:-.5px}
+h3.sec{font-family:var(--disp);font-size:15px;margin:18px 0 10px;color:var(--txt)}
+
+/* online toggle */
+.statusbar{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--stroke);border-radius:20px;padding:16px 18px;margin:12px 20px}
+.statusbar .lbl b{font-size:15px;display:block;font-family:var(--disp)}
+.statusbar .lbl span{font-size:12px;color:var(--mut)}
+.switch{width:62px;height:34px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid var(--stroke);position:relative;cursor:pointer;transition:.25s}
+.switch::after{content:"";position:absolute;top:3px;left:4px;width:26px;height:26px;border-radius:50%;background:#888;transition:.25s}
+.switch.on{background:rgba(200,255,46,.2);border-color:var(--lime)}
+.switch.on::after{left:30px;background:var(--lime);box-shadow:0 0 14px rgba(200,255,46,.6)}
+
+.map{min-height:230px;position:relative;background:
+  radial-gradient(circle at 60% 40%,rgba(200,255,46,.1),transparent 45%),
+  radial-gradient(circle at 25% 70%,rgba(139,92,246,.16),transparent 45%),
+  repeating-linear-gradient(0deg,transparent 0 40px,rgba(255,255,255,.035) 40px 41px),
+  repeating-linear-gradient(90deg,transparent 0 40px,rgba(255,255,255,.035) 40px 41px),#101019;margin:0 20px;border-radius:20px;border:1px solid var(--stroke);overflow:hidden}
+.zone{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(255,94,200,.35),transparent 70%);display:grid;place-items:center;font-size:11px;font-weight:800;color:#fff}
+.me{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--lime);border:3px solid #fff;box-shadow:0 0 0 8px rgba(200,255,46,.16)}
+.maptag{position:absolute;top:12px;left:12px;background:rgba(13,13,19,.85);border:1px solid var(--stroke);border-radius:99px;padding:7px 14px;font-size:12px;font-weight:600}
+.maptag i{font-style:normal;color:var(--pink)}
+
+/* earnings pills on home */
+.pills{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px 20px 0}
+.pill{background:var(--card);border:1px solid var(--stroke);border-radius:18px;padding:14px;text-align:center}
+.pill b{font-family:var(--disp);font-size:19px;display:block}
+.pill span{font-size:11px;color:var(--mut)}
+.pill b i{font-style:normal;color:var(--lime)}
+
+/* ride request modal */
+.request{position:absolute;inset:0;background:rgba(6,6,10,.88);backdrop-filter:blur(10px);z-index:30;display:none;flex-direction:column;justify-content:flex-end}
+.request.on{display:flex}
+.req-card{background:var(--panel);border-top:1px solid var(--lime);border-radius:28px 28px 0 0;padding:24px 20px 30px;animation:up .35s cubic-bezier(.2,.8,.3,1)}
+@keyframes up{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
+.req-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.req-top .t{font-family:var(--disp);font-size:20px}
+.timer{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-family:var(--disp);font-weight:700;font-size:17px;color:var(--lime);background:conic-gradient(var(--lime) var(--p,100%),rgba(255,255,255,.08) 0);position:relative}
+.timer::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--panel)}
+.timer b{position:relative;z-index:1}
+.req-fare{text-align:center;margin:10px 0 16px}
+.req-fare b{font-family:var(--disp);font-size:42px;letter-spacing:-1px}
+.req-fare .surge{display:inline-block;margin-left:8px;font-size:12px;font-weight:800;color:var(--pink);background:rgba(255,94,200,.12);border:1px solid rgba(255,94,200,.4);padding:4px 10px;border-radius:99px;vertical-align:middle}
+.req-route{background:rgba(255,255,255,.04);border:1px solid var(--stroke);border-radius:16px;padding:14px 16px;font-size:13.5px;line-height:2}
+.req-route i{font-style:normal;color:var(--mut);font-size:12px}
+.req-meta{display:flex;justify-content:space-around;margin:14px 0;font-size:12.5px;color:var(--mut)}
+.req-meta b{color:var(--txt)}
+.req-btns{display:flex;gap:12px}
+.req-btns .dec{flex:1;padding:16px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid var(--stroke);color:var(--mut);font-weight:700;cursor:pointer;font-family:var(--ui);font-size:15px}
+.req-btns .acc{flex:2;padding:16px;border-radius:16px;background:var(--lime);border:none;color:#000;font-weight:800;cursor:pointer;font-family:var(--ui);font-size:15px;box-shadow:0 8px 30px rgba(200,255,46,.3)}
+
+/* active trip */
+.trip-strip{background:linear-gradient(120deg,rgba(200,255,46,.12),rgba(56,225,255,.08));border:1px solid rgba(200,255,46,.35);margin:12px 20px;border-radius:18px;padding:14px 16px;display:flex;align-items:center;gap:12px}
+.trip-strip b{font-size:13.5px;display:block}
+.trip-strip span{font-size:11.5px;color:var(--mut)}
+.otp-in{display:flex;gap:8px;justify-content:center;margin:12px 0}
+.otp-in input{width:46px;height:52px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid var(--stroke);color:var(--lime);font-family:var(--disp);font-size:20px;text-align:center;outline:none}
+.otp-in input:focus{border-color:var(--lime)}
+.cta{width:calc(100% - 40px);margin:8px 20px;padding:15px;border-radius:16px;background:var(--lime);color:#000;font-weight:700;font-size:15px;border:none;cursor:pointer;font-family:var(--ui)}
+.cta.ghost{background:transparent;color:var(--mut);border:1px solid var(--stroke)}
+
+/* earnings screen */
+.balcard{background:linear-gradient(135deg,rgba(200,255,46,.2),rgba(139,92,246,.18));border:1px solid rgba(200,255,46,.35);border-radius:22px;padding:24px;margin-bottom:16px}
+.balcard span{font-size:12px;color:#d8d8e2;letter-spacing:1px}
+.balcard .amt{font-family:var(--disp);font-size:42px;font-weight:700;letter-spacing:-1px;margin:6px 0 4px}
+.balcard small{color:var(--mut);font-size:12px}
+.payout{width:100%;margin-top:14px;padding:12px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;font-weight:700;cursor:pointer;font-family:var(--ui);font-size:13.5px}
+.bars{display:flex;align-items:flex-end;gap:8px;height:120px;margin:16px 0 6px}
+.bar{flex:1;background:rgba(255,255,255,.09);border-radius:8px 8px 4px 4px;position:relative;transition:.3s}
+.bar.hi{background:linear-gradient(180deg,var(--lime),rgba(200,255,46,.4))}
+.bar span{position:absolute;bottom:-20px;left:0;right:0;text-align:center;font-size:10px;color:var(--mut)}
+.trip-row{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid rgba(255,255,255,.05)}
+.trip-row .ic{width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.06);display:grid;place-items:center;font-size:16px}
+.trip-row b{font-size:13.5px;display:block}
+.trip-row span{font-size:11.5px;color:var(--mut)}
+.trip-row .amt{margin-left:auto;font-family:var(--disp);font-weight:600;color:var(--lime)}
+
+/* incentives */
+.inc{background:var(--card);border:1px solid var(--stroke);border-radius:18px;padding:18px;margin-bottom:12px}
+.inc .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.inc .top b{font-size:14px}
+.inc .rew{font-family:var(--disp);color:var(--lime);font-weight:700}
+.prog{height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin:8px 0 6px}
+.prog i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--violet),var(--lime))}
+.inc small{color:var(--mut);font-size:11.5px}
+.streak{display:flex;gap:6px;margin-top:8px}
+.streak b{flex:1;text-align:center;padding:8px 0;border-radius:10px;background:rgba(255,255,255,.05);font-size:12px;color:var(--mut)}
+.streak b.hit{background:rgba(200,255,46,.14);color:var(--lime);border:1px solid rgba(200,255,46,.35)}
+
+/* profile */
+.avatar-big{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--pink));display:grid;place-items:center;font-family:var(--disp);font-weight:700;font-size:26px;margin:0 auto 12px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+.kpi{background:var(--card);border:1px solid var(--stroke);border-radius:16px;padding:14px;text-align:center}
+.kpi b{font-family:var(--disp);font-size:18px;display:block}
+.kpi span{font-size:10.5px;color:var(--mut)}
+.docrow{display:flex;align-items:center;gap:13px;padding:13px;background:var(--card);border:1px solid var(--stroke);border-radius:14px;margin-bottom:10px}
+.docrow b{font-size:13.5px;display:block}
+.docrow span{font-size:11.5px;color:var(--mut)}
+.docrow .st{margin-left:auto;font-size:10.5px;font-weight:800;padding:5px 10px;border-radius:99px}
+.st.ok{background:rgba(200,255,46,.12);color:var(--lime)}
+.st.warn{background:rgba(255,197,61,.12);color:var(--amber)}
+
+.tabbar{display:flex;background:rgba(13,13,19,.95);border-top:1px solid var(--stroke);padding:10px 8px 20px;z-index:5}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;color:var(--mut);font-size:10.5px;font-weight:600;cursor:pointer;font-family:var(--ui)}
+.tab .i{font-size:20px}
+.tab.on{color:var(--lime)}
+.toast{position:absolute;bottom:110px;left:50%;transform:translateX(-50%) translateY(20px);background:#1c1c26;border:1px solid var(--stroke);padding:12px 20px;border-radius:14px;font-size:13px;font-weight:600;opacity:0;transition:.3s;z-index:40;white-space:nowrap;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:920px){.shell{grid-template-columns:1fr}.side{text-align:center;max-width:480px;margin:0 auto;order:-1}.chips{justify-content:center}}
+@media(max-width:430px){.phone{width:100%;height:82vh;border-radius:32px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>5G ▮▮▮▯ 🔋</span></div>
+    <div class="app">
+
+      <!-- HOME -->
+      <div class="screen on" id="d-home">
+        <div class="hdr"><h2>hey Ramesh 👋</h2><span style="font-size:12px;color:var(--mut)">⭐ 4.92 · 94% acc.</span></div>
+        <div class="statusbar">
+          <div class="lbl"><b id="onlineLbl">You're offline</b><span id="onlineSub">flip the switch to start earning</span></div>
+          <div class="switch" id="sw" onclick="toggleOnline()"></div>
+        </div>
+        <div class="map">
+          <div class="me" style="top:55%;left:45%"></div>
+          <div class="zone" style="width:110px;height:110px;top:8%;left:55%">1.8×</div>
+          <div class="zone" style="width:80px;height:80px;top:52%;left:10%;background:radial-gradient(circle,rgba(255,197,61,.3),transparent 70%)">1.3×</div>
+          <div class="maptag">🔥 surge zones near you: <i>Koramangala 1.8×</i></div>
+        </div>
+        <div class="pills">
+          <div class="pill"><b>₹1,240</b><span>today</span></div>
+          <div class="pill"><b>9</b><span>trips</span></div>
+          <div class="pill"><b>6.2<i>h</i></b><span>online</span></div>
+        </div>
+        <button class="cta" id="demoReq" onclick="showRequest()" disabled style="opacity:.4">▶ Simulate incoming request</button>
+        <button class="cta ghost" onclick="toast('🎯 heading to surge zone…')">Navigate to surge zone 🔥</button>
+      </div>
+
+      <!-- ACTIVE TRIP -->
+      <div class="screen" id="d-trip">
+        <div class="hdr"><h2>current trip 🛺</h2><span style="font-size:12px;color:var(--lime);font-weight:700" id="tripState">PICKUP</span></div>
+        <div class="map" style="min-height:200px">
+          <div class="me" style="top:60%;left:30%"></div>
+          <span style="position:absolute;top:20%;left:68%;font-size:22px">📍</span>
+          <svg style="position:absolute;inset:0;width:100%;height:100%"><path d="M 110 200 Q 170 150 230 110 T 280 70" stroke="#c8ff2e" stroke-width="3" fill="none" stroke-dasharray="9 7"/></svg>
+          <div class="maptag">↱ turn right in <i style="color:var(--lime)">180 m</i></div>
+        </div>
+        <div class="trip-strip">
+          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--violet));display:grid;place-items:center;font-family:var(--disp);font-weight:700">LS</div>
+          <div><b>Lovesh S. · ⭐ 4.87</b><span>HSR Layout → Phoenix Marketcity · ₹96</span></div>
+          <button style="margin-left:auto;background:rgba(255,255,255,.08);border:1px solid var(--stroke);border-radius:12px;color:var(--txt);width:40px;height:40px;font-size:16px;cursor:pointer" onclick="toast('📞 masked call…')">📞</button>
+        </div>
+        <div id="otpBlock">
+          <p style="text-align:center;font-size:12.5px;color:var(--mut);margin-top:6px">enter rider's OTP to start trip</p>
+          <div class="otp-in">
+            <input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric">
+            <input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric">
+          </div>
+          <button class="cta" onclick="startTrip()">Verify OTP & start trip</button>
+        </div>
+        <div id="endBlock" style="display:none">
+          <p style="text-align:center;font-family:var(--disp);font-size:30px;margin:14px 0 2px" id="meter">₹96.00</p>
+          <p style="text-align:center;font-size:12px;color:var(--mut)">trip in progress · 4.8 km to drop</p>
+          <button class="cta" onclick="endTrip()">End trip & collect ₹96</button>
+        </div>
+        <button class="cta ghost" onclick="toast('trip cancelled');resetTrip();tabTo(document.querySelector('[data-t=d-home]'),'d-home')">Cancel trip</button>
+      </div>
+
+      <!-- EARNINGS -->
+      <div class="screen" id="d-earn">
+        <div class="hdr"><h2>earnings 💰</h2></div>
+        <div class="pad">
+          <div class="balcard">
+            <span>THIS WEEK</span>
+            <div class="amt">₹8,470</div>
+            <small>42 trips · 31h online · incl. ₹900 incentives</small>
+            <button class="payout" onclick="toast('⚡ instant payout of ₹8,470 initiated')">⚡ Instant payout to bank</button>
+          </div>
+          <h3 class="sec">daily breakdown</h3>
+          <div class="bars">
+            <div class="bar" style="height:45%"><span>Mon</span></div>
+            <div class="bar" style="height:62%"><span>Tue</span></div>
+            <div class="bar" style="height:38%"><span>Wed</span></div>
+            <div class="bar" style="height:75%"><span>Thu</span></div>
+            <div class="bar hi" style="height:95%"><span>Fri</span></div>
+            <div class="bar hi" style="height:88%"><span>Sat</span></div>
+            <div class="bar" style="height:52%"><span>Sun</span></div>
+          </div>
+          <h3 class="sec" style="margin-top:30px">recent trips</h3>
+          <div class="trip-row"><span class="ic">🛺</span><span><b>HSR → Phoenix Marketcity</b><span>6:42 pm · 11.2 km · 32 min</span></span><span class="amt">+₹96</span></div>
+          <div class="trip-row"><span class="ic">🛺</span><span><b>Koramangala → MG Road</b><span>5:30 pm · 7.8 km · 26 min</span></span><span class="amt">+₹84</span></div>
+          <div class="trip-row"><span class="ic">🛺</span><span><b>BTM → Silk Board</b><span>4:12 pm · 3.1 km · 14 min</span></span><span class="amt">+₹52</span></div>
+          <div class="trip-row"><span class="ic">🎯</span><span><b>Daily target bonus</b><span>12 trips completed</span></span><span class="amt">+₹300</span></div>
+        </div>
+      </div>
+
+      <!-- INCENTIVES -->
+      <div class="screen" id="d-inc">
+        <div class="hdr"><h2>incentives 🎯</h2></div>
+        <div class="pad">
+          <div class="inc">
+            <div class="top"><b>🌅 Morning rush — 5 trips before 11am</b><span class="rew">₹150</span></div>
+            <div class="prog"><i style="width:80%"></i></div>
+            <small>4 / 5 trips · resets 11:00 am</small>
+          </div>
+          <div class="inc">
+            <div class="top"><b>🔁 Daily dozen — 12 trips today</b><span class="rew">₹300</span></div>
+            <div class="prog"><i style="width:75%"></i></div>
+            <small>9 / 12 trips · 5h 20m left</small>
+          </div>
+          <div class="inc">
+            <div class="top"><b>🗓️ Weekend warrior — 30 trips Sat+Sun</b><span class="rew">₹800</span></div>
+            <div class="prog"><i style="width:40%"></i></div>
+            <small>12 / 30 trips</small>
+          </div>
+          <div class="inc">
+            <div class="top"><b>🔥 7-day streak — online 6h daily</b><span class="rew">₹500</span></div>
+            <div class="streak">
+              <b class="hit">M</b><b class="hit">T</b><b class="hit">W</b><b class="hit">T</b><b class="hit">F</b><b>S</b><b>S</b>
+            </div>
+            <small style="display:block;margin-top:8px">5 / 7 days · keep it going! 💪</small>
+          </div>
+          <div class="inc" style="border-color:rgba(139,92,246,.4)">
+            <div class="top"><b>🏆 City leaderboard</b><span class="rew">#14</span></div>
+            <small>top 10 autos in Bengaluru win ₹2,000 this week — you're 6 trips away</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="screen" id="d-prof">
+        <div class="hdr"><h2>partner profile</h2></div>
+        <div class="pad" style="text-align:center">
+          <div class="avatar-big">RS</div>
+          <b style="font-family:var(--disp);font-size:20px">Ramesh S.</b>
+          <p style="color:var(--mut);font-size:12.5px;margin-top:4px">Bajaj RE · KA 01 AK 4796 · partner since 2023</p>
+          <div class="kpis">
+            <div class="kpi"><b>⭐ 4.92</b><span>rating</span></div>
+            <div class="kpi"><b>94%</b><span>acceptance</span></div>
+            <div class="kpi"><b>6,412</b><span>lifetime trips</span></div>
+          </div>
+          <h3 class="sec" style="text-align:left">documents & KYC</h3>
+          <div style="text-align:left">
+            <div class="docrow">🪪<span><b>Driving License</b><span>KA-0120210012345</span></span><span class="st ok">VERIFIED</span></div>
+            <div class="docrow">📄<span><b>Vehicle RC</b><span>Bajaj RE Compact</span></span><span class="st ok">VERIFIED</span></div>
+            <div class="docrow">🛡️<span><b>Insurance</b><span>expires 12 Oct 2026</span></span><span class="st warn">RENEW SOON</span></div>
+            <div class="docrow">🏦<span><b>Bank / UPI payout</b><span>••••6410 · daily settlement</span></span><span class="st ok">ACTIVE</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REQUEST OVERLAY -->
+      <div class="request" id="reqOverlay">
+        <div class="req-card">
+          <div class="req-top"><span class="t">new ride request 🛎️</span><span class="timer" id="reqTimer"><b id="reqSec">15</b></span></div>
+          <div class="req-fare"><b>₹96</b><span class="surge">🔥 1.3× SURGE</span></div>
+          <div class="req-route">
+            🔵 <b>HSR Layout, Sector 2</b> <i>· 400 m away (2 min)</i><br>
+            🟢 <b>Phoenix Marketcity, Whitefield</b> <i>· 11.2 km trip (~32 min)</i>
+          </div>
+          <div class="req-meta"><span>rider <b>⭐ 4.87</b></span><span>payment <b>wallet</b></span><span>tolls <b>none</b></span></div>
+          <div class="req-btns">
+            <button class="dec" onclick="declineReq()">Decline</button>
+            <button class="acc" onclick="acceptReq()">Accept ride ✓</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toast" id="toast">toast</div>
+    </div>
+
+    <div class="tabbar">
+      <button class="tab on" data-t="d-home" onclick="tabTo(this,'d-home')"><span class="i">🏠</span>Home</button>
+      <button class="tab" data-t="d-earn" onclick="tabTo(this,'d-earn')"><span class="i">💰</span>Earnings</button>
+      <button class="tab" data-t="d-inc" onclick="tabTo(this,'d-inc')"><span class="i">🎯</span>Incentives</button>
+      <button class="tab" data-t="d-prof" onclick="tabTo(this,'d-prof')"><span class="i">👤</span>Profile</button>
+    </div>
+  </div>
+
+  <div class="side">
+    <h1>RY<em>D</em>R<br>driver app 🛞</h1>
+    <p>Interactive prototype of the partner experience — go online, get a ride request with a countdown, verify the rider's OTP, run the trip and cash out. Earnings, incentive targets, streaks and KYC included.</p>
+    <div class="chips">
+      <span class="chip">⚡ instant payouts</span><span class="chip">🎯 daily targets</span>
+      <span class="chip">🔥 surge heatmap</span><span class="chip">🏆 leaderboard</span>
+    </div>
+    <p style="margin-top:22px"><a href="index.html">← back to landing</a> · <a href="rider.html">rider app →</a> · <a href="admin.html">admin →</a></p>
+  </div>
+</div>
+
+<script>
+let online=false, reqInterval=null, meterIv=null;
+
+function toggleOnline(){
+  online=!online;
+  document.getElementById('sw').classList.toggle('on',online);
+  document.getElementById('onlineLbl').textContent=online?"You're online ⚡":"You're offline";
+  document.getElementById('onlineSub').textContent=online?"finding rides near HSR Layout…":"flip the switch to start earning";
+  const b=document.getElementById('demoReq');
+  b.disabled=!online;b.style.opacity=online?1:.4;
+  if(online){toast('🟢 you are online — rides incoming');setTimeout(()=>{if(online)showRequest()},2500)}
+}
+
+function showRequest(){
+  const o=document.getElementById('reqOverlay');o.classList.add('on');
+  let s=15;const sec=document.getElementById('reqSec'),tm=document.getElementById('reqTimer');
+  sec.textContent=s;tm.style.setProperty('--p','100%');
+  clearInterval(reqInterval);
+  reqInterval=setInterval(()=>{s--;sec.textContent=s;tm.style.setProperty('--p',(s/15*100)+'%');
+    if(s<=0){declineReq();toast('request expired ⏱️')}},1000);
+}
+function declineReq(){clearInterval(reqInterval);document.getElementById('reqOverlay').classList.remove('on')}
+function acceptReq(){
+  clearInterval(reqInterval);
+  document.getElementById('reqOverlay').classList.remove('on');
+  toast('ride accepted! navigate to pickup 🧭');
+  tabTo(document.querySelector('[data-t=d-home]'),'d-trip');
+}
+
+function startTrip(){
+  const vals=[...document.querySelectorAll('.otp-in input')].map(i=>i.value).join('');
+  if(vals.length<4){toast('enter all 4 digits');return}
+  document.getElementById('otpBlock').style.display='none';
+  document.getElementById('endBlock').style.display='block';
+  document.getElementById('tripState').textContent='ON TRIP';
+  toast('OTP verified ✓ trip started');
+}
+function endTrip(){
+  toast('₹96 collected · +₹96 to earnings 🎉');
+  resetTrip();
+  tabTo(document.querySelector('[data-t=d-earn]'),'d-earn');
+}
+function resetTrip(){
+  document.getElementById('otpBlock').style.display='block';
+  document.getElementById('endBlock').style.display='none';
+  document.getElementById('tripState').textContent='PICKUP';
+  document.querySelectorAll('.otp-in input').forEach(i=>i.value='');
+}
+
+/* otp auto-advance */
+const otps=document.querySelectorAll('.otp-in input');
+otps.forEach((inp,i)=>inp.addEventListener('input',()=>{if(inp.value&&i<3)otps[i+1].focus()}));
+
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on')}
+function tabTo(btn,id){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));if(btn)btn.classList.add('on');go(id)}
+
+let toastTimer;
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2200)}
+</script>
+</body>
+</html>

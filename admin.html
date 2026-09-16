@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RYDR — Admin Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0f; --panel:#101018; --card:rgba(255,255,255,.045);
+  --stroke:rgba(255,255,255,.08); --txt:#f4f4f6; --mut:#9a9aa8;
+  --lime:#c8ff2e; --violet:#8b5cf6; --pink:#ff5ec8; --cyan:#38e1ff; --red:#ff5470; --amber:#ffc53d;
+  --disp:'Space Grotesk',sans-serif; --ui:'Inter',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font-family:var(--ui);min-height:100vh;display:flex;
+  background-image:radial-gradient(circle at 90% 5%,rgba(139,92,246,.1),transparent 40%)}
+::selection{background:var(--lime);color:#000}
+a{color:inherit}
+
+/* sidebar */
+aside{width:240px;min-height:100vh;background:var(--panel);border-right:1px solid var(--stroke);padding:24px 16px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.logo{font-family:var(--disp);font-weight:700;font-size:24px;letter-spacing:-.5px;padding:0 10px 22px;text-decoration:none;color:var(--txt)}
+.logo em{font-style:normal;color:var(--lime)}
+.logo small{display:block;font-size:10px;color:var(--mut);letter-spacing:2.5px;font-family:var(--ui);margin-top:3px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;color:var(--mut);font-size:14px;font-weight:500;cursor:pointer;transition:.18s;border:1px solid transparent;background:none;width:100%;text-align:left;font-family:var(--ui);margin-bottom:4px}
+.nav-item:hover{color:var(--txt);background:rgba(255,255,255,.04)}
+.nav-item.on{color:var(--lime);background:rgba(200,255,46,.08);border-color:rgba(200,255,46,.25)}
+.nav-item .n{margin-left:auto;font-size:10.5px;font-weight:800;background:var(--pink);color:#000;padding:2px 8px;border-radius:99px}
+.admin-me{margin-top:auto;display:flex;gap:12px;align-items:center;padding:12px;border-radius:14px;background:var(--card);border:1px solid var(--stroke)}
+.admin-me .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--cyan));display:grid;place-items:center;font-family:var(--disp);font-weight:700;font-size:14px}
+.admin-me b{font-size:13px;display:block}
+.admin-me span{font-size:11px;color:var(--mut)}
+
+/* main */
+main{flex:1;padding:28px 32px;max-width:1400px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;gap:16px;flex-wrap:wrap}
+.topbar h1{font-family:var(--disp);font-size:28px;letter-spacing:-1px}
+.topbar h1 span{color:var(--mut);font-size:14px;font-family:var(--ui);font-weight:400;display:block;margin-top:2px}
+.top-actions{display:flex;gap:10px;align-items:center}
+.city-sel{background:var(--card);border:1px solid var(--stroke);color:var(--txt);padding:11px 16px;border-radius:12px;font-family:var(--ui);font-size:13.5px;cursor:pointer;outline:none}
+.live-dot{display:flex;align-items:center;gap:8px;background:rgba(200,255,46,.08);border:1px solid rgba(200,255,46,.3);padding:11px 16px;border-radius:12px;font-size:13px;font-weight:600;color:var(--lime)}
+.live-dot i{width:8px;height:8px;border-radius:50%;background:var(--lime);animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* kpi cards */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.kpi{background:var(--card);border:1px solid var(--stroke);border-radius:20px;padding:22px;position:relative;overflow:hidden;transition:.2s}
+.kpi:hover{transform:translateY(-3px);border-color:rgba(139,92,246,.4)}
+.kpi .lbl{font-size:12.5px;color:var(--mut);display:flex;justify-content:space-between}
+.kpi .val{font-family:var(--disp);font-size:34px;font-weight:700;letter-spacing:-1px;margin:8px 0 4px}
+.kpi .d{font-size:12px;font-weight:600}
+.d.up{color:var(--lime)}.d.dn{color:var(--red)}
+.kpi .spark{position:absolute;right:14px;bottom:14px;opacity:.85}
+
+/* panels */
+.grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:22px}
+.panel{background:var(--card);border:1px solid var(--stroke);border-radius:20px;padding:22px}
+.panel h3{font-family:var(--disp);font-size:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.panel h3 .more{font-size:12px;color:var(--cyan);cursor:pointer;font-family:var(--ui);font-weight:500}
+
+/* chart */
+.chart{display:flex;align-items:flex-end;gap:6px;height:180px;padding-top:10px}
+.ch-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:3px;height:100%;position:relative}
+.ch-col .seg1{background:linear-gradient(180deg,var(--violet),rgba(139,92,246,.35));border-radius:6px 6px 2px 2px}
+.ch-col .seg2{background:linear-gradient(180deg,var(--lime),rgba(200,255,46,.3));border-radius:2px}
+.ch-col span{position:absolute;bottom:-20px;left:0;right:0;text-align:center;font-size:10px;color:var(--mut)}
+.legend{display:flex;gap:18px;margin-top:30px;font-size:12px;color:var(--mut)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+
+/* surge zones */
+.zone-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.zone-row:last-child{border:none}
+.zone-row b{font-size:13.5px;flex:1}
+.zone-row .mult{font-family:var(--disp);font-weight:700;font-size:15px}
+.mult.hot{color:var(--pink)}.mult.warm{color:var(--amber)}.mult.cool{color:var(--cyan)}
+.zbtn{background:rgba(255,255,255,.06);border:1px solid var(--stroke);border-radius:9px;color:var(--mut);font-size:11px;padding:6px 10px;cursor:pointer;font-family:var(--ui);font-weight:600}
+.zbtn:hover{color:var(--lime);border-color:var(--lime)}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--mut);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:1px;padding:10px 12px;border-bottom:1px solid var(--stroke)}
+td{padding:13px 12px;border-bottom:1px solid rgba(255,255,255,.045)}
+tr:hover td{background:rgba(255,255,255,.025)}
+.rid{font-family:var(--disp);color:var(--mut);font-size:12px}
+.badge{font-size:10.5px;font-weight:800;padding:5px 11px;border-radius:99px;white-space:nowrap}
+.b-ongoing{background:rgba(56,225,255,.1);color:var(--cyan);border:1px solid rgba(56,225,255,.3)}
+.b-search{background:rgba(255,197,61,.1);color:var(--amber);border:1px solid rgba(255,197,61,.3)}
+.b-done{background:rgba(200,255,46,.1);color:var(--lime);border:1px solid rgba(200,255,46,.3)}
+.b-canc{background:rgba(255,84,112,.1);color:var(--red);border:1px solid rgba(255,84,112,.3)}
+.b-pend{background:rgba(139,92,246,.12);color:#b79bff;border:1px solid rgba(139,92,246,.35)}
+.who{display:flex;align-items:center;gap:10px}
+.who .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;font-family:var(--disp);color:#000}
+.act-btn{background:rgba(255,255,255,.06);border:1px solid var(--stroke);color:var(--txt);border-radius:9px;padding:7px 12px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:var(--ui);transition:.15s}
+.act-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.act-btn.ok:hover{border-color:var(--lime);color:var(--lime)}
+.act-btn.no:hover{border-color:var(--red);color:var(--red)}
+
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.f-chip{padding:9px 16px;border-radius:99px;border:1px solid var(--stroke);background:var(--card);color:var(--mut);font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--ui);transition:.15s}
+.f-chip.on{border-color:var(--lime);color:var(--lime);background:rgba(200,255,46,.07)}
+.search-in{flex:1;min-width:200px;background:var(--card);border:1px solid var(--stroke);border-radius:99px;padding:9px 18px;color:var(--txt);font-family:var(--ui);font-size:13px;outline:none}
+.search-in:focus{border-color:var(--violet)}
+
+.view{display:none}
+.view.on{display:block}
+.toast{position:fixed;bottom:26px;right:26px;background:#1c1c26;border:1px solid var(--stroke);padding:14px 22px;border-radius:14px;font-size:13.5px;font-weight:600;opacity:0;transform:translateY(14px);transition:.3s;z-index:50;box-shadow:0 16px 50px rgba(0,0,0,.5)}
+.toast.show{opacity:1;transform:none}
+
+@media(max-width:1100px){.kpis{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}}
+@media(max-width:800px){aside{display:none}main{padding:20px}}
+</style>
+</head>
+<body>
+
+<aside>
+  <a class="logo" href="index.html">RY<em>D</em>R<small>OPS CONSOLE</small></a>
+  <button class="nav-item on" data-v="overview" onclick="nav(this)">📊 Overview</button>
+  <button class="nav-item" data-v="rides" onclick="nav(this)">🚕 Live rides</button>
+  <button class="nav-item" data-v="drivers" onclick="nav(this)">🛞 Drivers <span class="n">3</span></button>
+  <button class="nav-item" data-v="riders" onclick="nav(this)">👥 Riders</button>
+  <button class="nav-item" data-v="revenue" onclick="nav(this)">💰 Revenue</button>
+  <button class="nav-item" onclick="toast('⚙️ pricing config — see docs/FEATURES.md §3.3')">🏷️ Pricing</button>
+  <button class="nav-item" onclick="toast('🎁 promo manager — see docs/FEATURES.md §3.3')">🎁 Promos</button>
+  <button class="nav-item" onclick="toast('🆘 safety console — see docs/FEATURES.md §3.4')">🆘 Safety</button>
+  <div class="admin-me"><span class="av">LS</span><span><b>Lovesh S.</b><span>super admin</span></span></div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <h1 id="viewTitle">mission control 🧠<span>everything happening on RYDR, right now</span></h1>
+    <div class="top-actions">
+      <select class="city-sel"><option>🌆 Bengaluru</option><option>Mumbai</option><option>Delhi NCR</option><option>Pune</option><option>All cities</option></select>
+      <div class="live-dot"><i></i> LIVE</div>
+    </div>
+  </div>
+
+  <!-- ================= OVERVIEW ================= -->
+  <div class="view on" id="v-overview">
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">active rides <span>🚕</span></div><div class="val" id="kActive">1,284</div><div class="d up">▲ 12.4% vs last hour</div></div>
+      <div class="kpi"><div class="lbl">drivers online <span>🛞</span></div><div class="val" id="kOnline">4,318</div><div class="d up">▲ 3.1% · 68% utilization</div></div>
+      <div class="kpi"><div class="lbl">today's GMV <span>💰</span></div><div class="val">₹48.2L</div><div class="d up">▲ 8.9% vs yesterday</div></div>
+      <div class="kpi"><div class="lbl">cancellation rate <span>❌</span></div><div class="val">6.8%</div><div class="d dn">▼ 1.2% — nice</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>rides this week <span class="more" onclick="toast('full analytics — Phase 4 in docs/ROADMAP.md')">full report →</span></h3>
+        <div class="chart" id="chart"></div>
+        <div class="legend"><span><i style="background:var(--violet)"></i>completed</span><span><i style="background:var(--lime)"></i>surge rides</span></div>
+      </div>
+      <div class="panel">
+        <h3>🔥 surge zones <span class="more">manage</span></h3>
+        <div class="zone-row"><b>Koramangala</b><span class="mult hot">1.8×</span><button class="zbtn" onclick="toast('surge capped at 1.5× for Koramangala')">cap</button></div>
+        <div class="zone-row"><b>Indiranagar</b><span class="mult warm">1.4×</span><button class="zbtn" onclick="toast('surge capped for Indiranagar')">cap</button></div>
+        <div class="zone-row"><b>Whitefield</b><span class="mult warm">1.3×</span><button class="zbtn" onclick="toast('surge capped for Whitefield')">cap</button></div>
+        <div class="zone-row"><b>HSR Layout</b><span class="mult cool">1.1×</span><button class="zbtn" onclick="toast('surge reset for HSR')">reset</button></div>
+        <div class="zone-row"><b>Electronic City</b><span class="mult cool">1.0×</span><button class="zbtn" onclick="toast('no surge active')">—</button></div>
+        <h3 style="margin-top:22px">⚠️ needs attention</h3>
+        <div class="zone-row"><b>SOS raised · ride #R-88123</b><button class="zbtn" style="color:var(--red);border-color:rgba(255,84,112,.4)" onclick="toast('🆘 safety team pinged — call in progress')">respond</button></div>
+        <div class="zone-row"><b>3 KYC approvals pending</b><button class="zbtn" onclick="nav(document.querySelector('[data-v=drivers]'))">review</button></div>
+        <div class="zone-row"><b>Refund queue: 7 requests</b><button class="zbtn" onclick="toast('refund queue opened')">open</button></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>latest rides <span class="more" onclick="nav(document.querySelector('[data-v=rides]'))">see all →</span></h3>
+      <table>
+        <thead><tr><th>ride</th><th>rider</th><th>driver</th><th>route</th><th>fare</th><th>status</th></tr></thead>
+        <tbody id="miniRides"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= LIVE RIDES ================= -->
+  <div class="view" id="v-rides">
+    <div class="filters">
+      <input class="search-in" placeholder="🔍 search ride id, rider, driver…" oninput="filterRides(this.value)">
+      <button class="f-chip on" onclick="chip(this,'all')">All</button>
+      <button class="f-chip" onclick="chip(this,'ONGOING')">Ongoing</button>
+      <button class="f-chip" onclick="chip(this,'SEARCHING')">Searching</button>
+      <button class="f-chip" onclick="chip(this,'COMPLETED')">Completed</button>
+      <button class="f-chip" onclick="chip(this,'CANCELLED')">Cancelled</button>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>ride</th><th>rider</th><th>driver</th><th>route</th><th>category</th><th>fare</th><th>status</th><th></th></tr></thead>
+        <tbody id="rideRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= DRIVERS ================= -->
+  <div class="view" id="v-drivers">
+    <div class="panel" style="margin-bottom:16px">
+      <h3>🪪 KYC approval queue</h3>
+      <table>
+        <thead><tr><th>applicant</th><th>vehicle</th><th>docs</th><th>applied</th><th>actions</th></tr></thead>
+        <tbody>
+          <tr><td><div class="who"><span class="av" style="background:var(--amber)">VK</span>Vijay K.</div></td><td>🛺 Bajaj RE · KA 05 MN 2211</td><td>DL ✓ · RC ✓ · Insurance ✓</td><td>2h ago</td>
+            <td><button class="act-btn ok" onclick="kyc(this,true)">✓ Approve</button> <button class="act-btn no" onclick="kyc(this,false)">✕ Reject</button></td></tr>
+          <tr><td><div class="who"><span class="av" style="background:var(--cyan)">PD</span>Priya D.</div></td><td>🚗 WagonR · KA 03 QC 8890</td><td>DL ✓ · RC ✓ · Insurance ⚠ blurry</td><td>5h ago</td>
+            <td><button class="act-btn ok" onclick="kyc(this,true)">✓ Approve</button> <button class="act-btn no" onclick="kyc(this,false)">✕ Reject</button></td></tr>
+          <tr><td><div class="who"><span class="av" style="background:var(--pink)">AN</span>Arjun N.</div></td><td>🏍️ Splendor · KA 09 XY 4412</td><td>DL ✓ · RC pending · ID ✓</td><td>1d ago</td>
+            <td><button class="act-btn ok" onclick="kyc(this,true)">✓ Approve</button> <button class="act-btn no" onclick="kyc(this,false)">✕ Reject</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <h3>active driver partners</h3>
+      <table>
+        <thead><tr><th>driver</th><th>vehicle</th><th>rating</th><th>acceptance</th><th>trips (7d)</th><th>earnings (7d)</th><th>status</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><div class="who"><span class="av" style="background:var(--lime)">RS</span>Ramesh S.</div></td><td>🛺 KA 01 AK 4796</td><td>⭐ 4.92</td><td>94%</td><td>42</td><td>₹8,470</td><td><span class="badge b-done">ONLINE</span></td><td><button class="act-btn" onclick="toast('driver profile opened')">view</button></td></tr>
+          <tr><td><div class="who"><span class="av" style="background:var(--cyan)">MJ</span>Meena J.</div></td><td>⚡ KA 02 EV 1044</td><td>⭐ 4.97</td><td>97%</td><td>51</td><td>₹11,220</td><td><span class="badge b-done">ONLINE</span></td><td><button class="act-btn" onclick="toast('driver profile opened')">view</button></td></tr>
+          <tr><td><div class="who"><span class="av" style="background:var(--violet);color:#fff">GT</span>Ganesh T.</div></td><td>🚗 KA 04 MM 7781</td><td>⭐ 4.61</td><td>71%</td><td>18</td><td>₹3,910</td><td><span class="badge b-search">IDLE</span></td><td><button class="act-btn" onclick="toast('coaching nudge sent 📩')">nudge</button></td></tr>
+          <tr><td><div class="who"><span class="av" style="background:var(--red)">BK</span>Babu K.</div></td><td>🛺 KA 06 RE 3320</td><td>⭐ 3.94</td><td>52%</td><td>9</td><td>₹1,180</td><td><span class="badge b-canc">FLAGGED</span></td><td><button class="act-btn no" onclick="toast('⛔ driver suspended pending review')">suspend</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= RIDERS ================= -->
+  <div class="view" id="v-riders">
+    <div class="panel">
+      <h3>riders</h3>
+      <table>
+        <thead><tr><th>rider</th><th>phone</th><th>rides</th><th>rating</th><th>wallet</th><th>joined</th><th>status</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><div class="who"><span class="av" style="background:var(--lime)">LS</span>Lovesh S.</div></td><td>+91 ••••• 88012</td><td>134</td><td>⭐ 4.87</td><td>₹482.50</td><td>Mar 2024</td><td><span class="badge b-done">ACTIVE</span></td><td><button class="act-btn" onclick="toast('rider profile opened')">view</button></td></tr>
+          <tr><td><div class="who"><span class="av" style="background:var(--cyan)">AT</span>Ananya T.</div></td><td>+91 ••••• 22781</td><td>89</td><td>⭐ 4.95</td><td>₹1,204.00</td><td>Jan 2024</td><td><span class="badge b-done">ACTIVE</span></td><td><button class="act-btn" onclick="toast('rider profile opened')">view</button></td></tr>
+          <tr><td><div class="who"><span class="av" style="background:var(--pink)">RK</span>Rohan K.</div></td><td>+91 ••••• 90233</td><td>216</td><td>⭐ 4.71</td><td>₹56.00</td><td>Aug 2023</td><td><span class="badge b-pend">PASS MEMBER</span></td><td><button class="act-btn" onclick="toast('rider profile opened')">view</button></td></tr>
+          <tr><td><div class="who"><span class="av" style="background:var(--amber)">FR</span>Fraud R.</div></td><td>+91 ••••• 11109</td><td>31</td><td>⭐ 2.80</td><td>−₹340.00</td><td>Jun 2026</td><td><span class="badge b-canc">BLOCKED</span></td><td><button class="act-btn ok" onclick="toast('rider unblocked')">unblock</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= REVENUE ================= -->
+  <div class="view" id="v-revenue">
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">GMV (this month)</div><div class="val">₹12.4Cr</div><div class="d up">▲ 14.2% MoM</div></div>
+      <div class="kpi"><div class="lbl">net revenue (take ~22%)</div><div class="val">₹2.7Cr</div><div class="d up">▲ 11.8% MoM</div></div>
+      <div class="kpi"><div class="lbl">driver payouts</div><div class="val">₹9.1Cr</div><div class="d up">on schedule ✓</div></div>
+      <div class="kpi"><div class="lbl">promo spend</div><div class="val">₹38.4L</div><div class="d dn">▲ 6.1% — watch this</div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>revenue by category (this month)</h3>
+        <div class="zone-row"><b>🛺 Auto</b><div style="flex:2;height:10px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden"><i style="display:block;height:100%;width:78%;background:var(--lime)"></i></div><span class="mult" style="color:var(--lime)">₹4.8Cr</span></div>
+        <div class="zone-row"><b>🚗 Mini</b><div style="flex:2;height:10px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden"><i style="display:block;height:100%;width:58%;background:var(--violet)"></i></div><span class="mult" style="color:#b79bff">₹3.6Cr</span></div>
+        <div class="zone-row"><b>🏍️ Bike</b><div style="flex:2;height:10px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden"><i style="display:block;height:100%;width:34%;background:var(--cyan)"></i></div><span class="mult cool">₹2.1Cr</span></div>
+        <div class="zone-row"><b>🚘 Prime</b><div style="flex:2;height:10px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden"><i style="display:block;height:100%;width:22%;background:var(--pink)"></i></div><span class="mult hot">₹1.4Cr</span></div>
+        <div class="zone-row"><b>⚡ EV</b><div style="flex:2;height:10px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden"><i style="display:block;height:100%;width:9%;background:var(--amber)"></i></div><span class="mult warm">₹0.5Cr</span></div>
+      </div>
+      <div class="panel">
+        <h3>payout & refund queues</h3>
+        <div class="zone-row"><b>Weekly driver settlement</b><span class="badge b-done">RAN 4:00 AM ✓</span></div>
+        <div class="zone-row"><b>Instant payouts today</b><span class="badge b-ongoing">1,204 · ₹18.2L</span></div>
+        <div class="zone-row"><b>Refund requests</b><span class="badge b-search">7 PENDING</span></div>
+        <div class="zone-row"><b>Failed payments retry</b><span class="badge b-canc">23 FAILED</span></div>
+        <div class="zone-row"><b>GST invoices generated</b><span class="badge b-done">14,203 ✓</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">toast</div>
+</main>
+
+<script>
+/* ---------- view switching ---------- */
+const titles={
+  overview:['mission control 🧠','everything happening on RYDR, right now'],
+  rides:['live rides 🚕','every trip on the network, filter & drill in'],
+  drivers:['driver partners 🛞','KYC queue, quality & fleet management'],
+  riders:['riders 👥','customer accounts, wallets & flags'],
+  revenue:['revenue 💰','GMV, take rate, payouts & promo burn'],
+};
+function nav(btn){
+  const v=btn.dataset.v; if(!v) return;
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
+  document.getElementById('v-'+v).classList.add('on');
+  document.getElementById('viewTitle').innerHTML=titles[v][0]+'<span>'+titles[v][1]+'</span>';
+}
+
+/* ---------- chart ---------- */
+const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const data=[[62,10],[70,14],[58,8],[80,18],[95,30],[90,26],[66,12]];
+document.getElementById('chart').innerHTML=data.map((d,i)=>`
+  <div class="ch-col">
+    <div class="seg2" style="height:${d[1]}%"></div>
+    <div class="seg1" style="height:${d[0]-d[1]}%"></div>
+    <span>${days[i]}</span>
+  </div>`).join('');
+
+/* ---------- rides data ---------- */
+const rides=[
+ ['R-88291','Lovesh S.','Ramesh S.','HSR → Phoenix Mall','🛺 Auto','₹96','ONGOING'],
+ ['R-88290','Ananya T.','Meena J.','Indiranagar → BLR Airport','⚡ EV','₹588','ONGOING'],
+ ['R-88289','Rohan K.','—','Koramangala → MG Road','🚗 Mini','₹142','SEARCHING'],
+ ['R-88288','Sara P.','Ganesh T.','Whitefield → Marathahalli','🚗 Mini','₹118','COMPLETED'],
+ ['R-88287','Dev M.','Vijay K.','BTM → Jayanagar','🏍️ Bike','₹48','COMPLETED'],
+ ['R-88286','Isha V.','—','Hebbal → Manyata Park','🛺 Auto','₹74','CANCELLED'],
+ ['R-88285','Kabir L.','Meena J.','MG Road → UB City','🚘 Prime','₹204','COMPLETED'],
+ ['R-88284','Tanvi R.','Ramesh S.','HSR → Silk Board','🛺 Auto','₹52','COMPLETED'],
+];
+const bmap={ONGOING:'b-ongoing',SEARCHING:'b-search',COMPLETED:'b-done',CANCELLED:'b-canc'};
+function rowHtml(r,withAct){
+  return `<tr data-st="${r[6]}" data-q="${(r[0]+r[1]+r[2]).toLowerCase()}">
+    <td class="rid">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td>
+    ${withAct?`<td>${r[4]}</td>`:''}
+    <td style="font-family:var(--disp);font-weight:600">${r[5]}</td>
+    <td><span class="badge ${bmap[r[6]]}">${r[6]}</span></td>
+    ${withAct?`<td><button class="act-btn" onclick="toast('🗺️ god-view opened for ${r[0]}')">track</button></td>`:''}
+  </tr>`;
+}
+document.getElementById('miniRides').innerHTML=rides.slice(0,5).map(r=>rowHtml(r,false)).join('');
+document.getElementById('rideRows').innerHTML=rides.map(r=>rowHtml(r,true)).join('');
+
+let stFilter='all';
+function chip(btn,st){
+  stFilter=st;
+  document.querySelectorAll('.f-chip').forEach(c=>c.classList.remove('on'));btn.classList.add('on');
+  applyFilters(document.querySelector('.search-in').value);
+}
+function filterRides(q){applyFilters(q)}
+function applyFilters(q){
+  q=(q||'').toLowerCase();
+  document.querySelectorAll('#rideRows tr').forEach(tr=>{
+    const okSt=stFilter==='all'||tr.dataset.st===stFilter;
+    const okQ=!q||tr.dataset.q.includes(q);
+    tr.style.display=okSt&&okQ?'':'none';
+  });
+}
+
+/* ---------- kyc ---------- */
+function kyc(btn,ok){
+  const tr=btn.closest('tr');
+  tr.style.opacity=.35;tr.style.pointerEvents='none';
+  toast(ok?'✅ partner approved — welcome aboard!':'❌ application rejected, applicant notified');
+}
+
+/* ---------- live tick ---------- */
+setInterval(()=>{
+  const a=document.getElementById('kActive'),o=document.getElementById('kOnline');
+  a.textContent=(1284+Math.floor(Math.random()*30-15)).toLocaleString();
+  o.textContent=(4318+Math.floor(Math.random()*40-20)).toLocaleString();
+},2600);
+
+let toastTimer;
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2400)}
+</script>
+</body>
+</html>
