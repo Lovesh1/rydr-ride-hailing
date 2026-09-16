@@ -3,7 +3,12 @@
 Everything that needs to be built for a production-grade Ola-style ride-hailing platform.
 Organized by surface: **Rider App**, **Driver App**, **Admin Dashboard**, and **Platform-wide**.
 
-Legend: ✅ = in HTML prototype · 🔜 = documented, to build
+> **v1 production build shipped** (see [`server/`](../server) + [`web/`](../web)): phone-OTP auth,
+> booking with upfront fares & promos, nearest-driver matching with offer cascade, the full ride
+> state machine with OTP start, live SSE tracking, wallet ledger with driver earnings & tips,
+> per-zone surge control, ratings, KYC queue, rider blocking, revenue analytics, SOS desk, audit log.
+
+Legend: ✅ = in v1 prototype/build · 🔜 = documented, to build
 
 ---
 

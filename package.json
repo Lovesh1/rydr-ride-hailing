@@ -1,0 +1,16 @@
+{
+  "name": "rydr",
+  "version": "1.0.0",
+  "description": "RYDR — production ride-hailing platform (Ola-style). Zero-dependency Node.js backend + premium web clients.",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "seed": "node server/db.js --reseed"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "license": "MIT"
+}

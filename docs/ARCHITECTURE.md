@@ -1,6 +1,9 @@
 # 🏗️ RYDR — System Architecture
 
-Target architecture for building RYDR beyond the HTML prototypes.
+> **Status:** a single-node implementation of this architecture is now live in [`server/`](../server) —
+> real SQLite (`node:sqlite`), the full ride state machine, matching cascade, surge pricing,
+> wallet ledger and SSE realtime, with zero npm dependencies. This document describes both what
+> is implemented and the target shape at scale.
 
 ## 1. High-level diagram
 

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RYDR — Move beautifully.</title>
+<meta name="description" content="RYDR is the premium ride-hailing platform. Bikes, autos, sedans & EVs — summoned in seconds, priced upfront, driven by the city's best.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/base.css">
+<style>
+.wrap{max-width:1200px;margin:0 auto;padding:0 28px;position:relative;z-index:1}
+
+/* nav */
+nav{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);background:rgba(8,9,11,.65);border-bottom:1px solid var(--hair)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:76px}
+.logo{font-family:var(--disp);font-weight:600;font-size:24px;letter-spacing:.02em;text-decoration:none}
+.logo i{font-style:normal;color:var(--gold)}
+.nav-links{display:flex;gap:34px;align-items:center}
+.nav-links a{color:var(--mut);text-decoration:none;font-size:13.5px;font-weight:500;transition:color .25s;letter-spacing:.02em}
+.nav-links a:hover{color:var(--ink)}
+
+/* hero */
+.hero{padding:130px 0 90px;text-align:center;position:relative}
+.hero .micro{margin-bottom:28px;display:inline-flex;align-items:center;gap:10px}
+.hero .micro::before,.hero .micro::after{content:"";width:36px;height:1px;background:var(--hair-hi);display:inline-block}
+h1{font-family:var(--disp);font-weight:500;font-size:clamp(52px,8vw,104px);letter-spacing:-.035em;line-height:.98}
+h1 .serif{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--gold);letter-spacing:-.01em}
+.hero .sub{color:var(--mut);font-size:17px;line-height:1.7;max-width:520px;margin:32px auto 44px}
+.hero-cta{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.hero-note{margin-top:26px;font-size:12.5px;color:var(--mut);letter-spacing:.04em}
+.hero-note b{color:var(--ink-dim);font-weight:500}
+
+/* stat rail */
+.rail{border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);display:grid;grid-template-columns:repeat(4,1fr)}
+.rail>div{padding:34px 20px;text-align:center;border-right:1px solid var(--hair)}
+.rail>div:last-child{border-right:none}
+.rail b{font-family:var(--disp);font-size:34px;font-weight:500;letter-spacing:-.02em;display:block}
+.rail b i{font-style:normal;color:var(--gold)}
+.rail span{font-size:11.5px;color:var(--mut);letter-spacing:.16em;text-transform:uppercase;margin-top:8px;display:block}
+
+/* live map showcase */
+.showcase{margin:100px 0;border:1px solid var(--hair);border-radius:32px;overflow:hidden;position:relative;height:440px}
+.showcase .mapsurface{position:absolute;inset:0}
+.showcase .caption{position:absolute;left:34px;bottom:30px;z-index:5}
+.showcase .caption b{font-family:var(--disp);font-size:22px;font-weight:500;display:block;margin-top:8px}
+.sc-car{position:absolute;z-index:3;width:34px;height:34px;border-radius:50%;background:rgba(16,19,22,.9);
+  border:1px solid var(--hair-hi);display:grid;place-items:center;font-size:15px;transition:all 2.4s linear;
+  box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.sc-car.gold{border-color:rgba(217,192,138,.5);box-shadow:0 0 24px rgba(217,192,138,.15)}
+.sc-live{position:absolute;top:26px;right:28px;z-index:5}
+
+/* sections */
+section{padding:110px 0}
+.sec-head{max-width:640px;margin-bottom:64px}
+.sec-head.center{margin-inline:auto;text-align:center}
+h2{font-family:var(--disp);font-weight:500;font-size:clamp(34px,4.6vw,54px);letter-spacing:-.03em;line-height:1.05;margin:18px 0}
+h2 .serif{font-family:var(--serif);font-style:italic;color:var(--gold)}
+.lead{color:var(--mut);font-size:16px;line-height:1.75}
+
+/* fleet — refined ledger rows */
+.fleet{border-top:1px solid var(--hair)}
+.fl-row{display:grid;grid-template-columns:70px 1.2fr 2fr auto;gap:26px;align-items:center;
+  padding:34px 10px;border-bottom:1px solid var(--hair);transition:all .35s;cursor:default}
+.fl-row:hover{background:rgba(255,255,255,.018);padding-left:22px}
+.fl-row .idx{font-family:var(--serif);font-style:italic;font-size:26px;color:var(--mut)}
+.fl-row h3{font-family:var(--disp);font-weight:500;font-size:24px;letter-spacing:-.02em}
+.fl-row h3 small{font-size:12px;color:var(--mut);font-family:var(--ui);letter-spacing:.14em;display:block;margin-top:4px;text-transform:uppercase}
+.fl-row p{color:var(--mut);font-size:14px;line-height:1.65}
+.fl-row .fare{font-family:var(--disp);font-size:19px;color:var(--gold);white-space:nowrap}
+.fl-row .fare small{display:block;font-size:11px;color:var(--mut);font-family:var(--ui);letter-spacing:.1em;margin-top:3px}
+
+/* pillars */
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.pillar{padding:38px 32px;position:relative;overflow:hidden}
+.pillar .num{font-family:var(--serif);font-style:italic;font-size:52px;color:rgba(217,192,138,.22);line-height:1}
+.pillar h3{font-family:var(--disp);font-weight:500;font-size:20px;margin:22px 0 12px;letter-spacing:-.01em}
+.pillar p{color:var(--mut);font-size:14px;line-height:1.7}
+
+/* membership band */
+.band{border-radius:36px;border:1px solid rgba(217,192,138,.22);position:relative;overflow:hidden;
+  background:linear-gradient(130deg,rgba(217,192,138,.09),rgba(13,122,84,.06) 55%,transparent);
+  padding:80px 70px;display:grid;grid-template-columns:1.3fr 1fr;gap:60px;align-items:center}
+.band::after{content:"RYDR ONE";position:absolute;right:-30px;bottom:-38px;font-family:var(--disp);
+  font-size:150px;font-weight:600;letter-spacing:-.04em;color:rgba(255,255,255,.022);white-space:nowrap}
+.band ul{list-style:none;margin-top:30px}
+.band li{padding:13px 0;border-bottom:1px solid var(--hair);color:var(--ink-dim);font-size:15px;display:flex;gap:14px;align-items:baseline}
+.band li:last-child{border:none}
+.band li::before{content:"—";color:var(--gold)}
+.one-card{aspect-ratio:1.58;border-radius:22px;position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#15130d,#0c0d0a 60%,#101208);border:1px solid rgba(217,192,138,.35);
+  box-shadow:0 40px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(239,220,174,.15);
+  padding:28px;display:flex;flex-direction:column;justify-content:space-between;transform:rotate(-3deg);transition:transform .5s}
+.one-card:hover{transform:rotate(0deg) scale(1.02)}
+.one-card .top{display:flex;justify-content:space-between;align-items:start}
+.one-card .chip{width:40px;height:30px;border-radius:6px;background:linear-gradient(135deg,var(--gold),#9a8354);opacity:.85}
+.one-card .brand{font-family:var(--disp);font-weight:600;font-size:19px;letter-spacing:.04em;color:var(--gold-hi)}
+.one-card .no{font-family:var(--disp);letter-spacing:.28em;color:var(--ink-dim);font-size:14px}
+.one-card .holder{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.2em;color:var(--mut);text-transform:uppercase}
+
+/* drive band */
+.drive{display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:center}
+.d-stat{border-left:1px solid var(--hair-hi);padding-left:26px;margin-bottom:34px}
+.d-stat b{font-family:var(--disp);font-size:42px;font-weight:500;letter-spacing:-.02em;display:block}
+.d-stat b i{font-style:normal;color:var(--emerald)}
+.d-stat span{color:var(--mut);font-size:13px;letter-spacing:.08em}
+
+/* footer */
+footer{border-top:1px solid var(--hair);padding:70px 0 44px;position:relative;z-index:1}
+.f-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px}
+.f-grid h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);margin-bottom:20px;font-weight:600}
+.f-grid a{display:block;color:var(--ink-dim);text-decoration:none;font-size:13.5px;padding:6px 0;transition:color .2s}
+.f-grid a:hover{color:var(--gold)}
+.f-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:56px;padding-top:26px;border-top:1px solid var(--hair);color:var(--mut);font-size:12px;letter-spacing:.03em}
+
+@media(max-width:900px){
+  .rail{grid-template-columns:1fr 1fr}
+  .rail>div:nth-child(2n){border-right:none}
+  .fl-row{grid-template-columns:40px 1fr auto}
+  .fl-row p{display:none}
+  .pillars{grid-template-columns:1fr}
+  .band{grid-template-columns:1fr;padding:48px 32px}
+  .drive{grid-template-columns:1fr}
+  .f-grid{grid-template-columns:1fr 1fr}
+  .nav-links a:not(.btn){display:none}
+}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="aura gold" style="width:600px;height:600px;top:-200px;left:50%;transform:translateX(-50%)"></div>
+<div class="aura em" style="width:500px;height:500px;bottom:10%;left:-180px"></div>
+<div class="aura vi" style="width:400px;height:400px;top:45%;right:-150px"></div>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="logo" href="/">RYD<i>R</i></a>
+    <div class="nav-links">
+      <a href="#fleet">Fleet</a>
+      <a href="#pillars">Standards</a>
+      <a href="#one">RYDR One</a>
+      <a href="#drive">Partners</a>
+      <a href="/admin" style="opacity:.6">Console</a>
+      <a class="btn btn-gold sm" href="/rider" style="padding:11px 22px">Open app</a>
+    </div>
+  </div>
+</nav>
+
+<header class="wrap hero">
+  <span class="micro gold">EST. 2026 · 24 CITIES · LIVE NOW</span>
+  <h1>Move<br><span class="serif">beautifully.</span></h1>
+  <p class="sub">The ride, perfected. Upfront fares that never flinch, drivers held to a higher bar, and a car that arrives like it was always meant to.</p>
+  <div class="hero-cta">
+    <a class="btn btn-gold" href="/rider">Request a ride</a>
+    <a class="btn btn-dark" href="/driver">Drive with RYDR</a>
+  </div>
+  <p class="hero-note">This is the <b>live product</b> — real accounts, real matching engine, real wallet. No mockups.</p>
+</header>
+
+<div class="wrap">
+  <div class="rail reveal">
+    <div><b>12<i>M</i></b><span>rides completed</span></div>
+    <div><b>4.92<i>★</i></b><span>fleet rating</span></div>
+    <div><b>2:40</b><span>median pickup</span></div>
+    <div><b>0<i>%</i></b><span>fare surprises</span></div>
+  </div>
+
+  <!-- live showcase -->
+  <div class="showcase reveal">
+    <div class="mapsurface"></div>
+    <span class="sc-live pill em"><span class="dot live"></span>LIVE NETWORK</span>
+    <div class="caption">
+      <span class="micro">BENGALURU · SOUTH ZONE</span>
+      <b id="scCount">— vehicles in motion</b>
+    </div>
+    <div id="scCars"></div>
+  </div>
+</div>
+
+<!-- fleet -->
+<section class="wrap" id="fleet">
+  <div class="sec-head reveal">
+    <span class="micro gold">THE FLEET</span>
+    <h2>Five ways to <span class="serif">arrive.</span></h2>
+    <p class="lead">Every tier holds the same standard — inspected vehicles, verified partners, upfront pricing. Choose by mood, not by compromise.</p>
+  </div>
+  <div class="fleet reveal">
+    <div class="fl-row"><span class="idx">01</span><h3>Bike<small>solo · fastest</small></h3><p>A helmet, a clear lane, and the shortest line between you and there. The city's traffic becomes a rumour.</p><span class="fare">₹6 / km<small>from</small></span></div>
+    <div class="fl-row"><span class="idx">02</span><h3>Auto<small>3 seats · the classic</small></h3><p>The three-wheeled institution, elevated — metered honestly, matched instantly, arriving warmly.</p><span class="fare">₹9 / km<small>from</small></span></div>
+    <div class="fl-row"><span class="idx">03</span><h3>Mini<small>4 seats · everyday</small></h3><p>A compact, air-conditioned hatchback for the daily choreography of the city. Quietly dependable.</p><span class="fare">₹12 / km<small>from</small></span></div>
+    <div class="fl-row"><span class="idx">04</span><h3>Prime<small>4 seats · top rated</small></h3><p>Sedans driven by the top decile of our fleet. Extra legroom, quiet mode on request, doors that close with a thud.</p><span class="fare">₹16 / km<small>from</small></span></div>
+    <div class="fl-row"><span class="idx">05</span><h3>EV<small>4 seats · zero emission</small></h3><p>Electric, silent, and guilt-free. The future gliding to your doorstep with nothing to apologise for.</p><span class="fare">₹13 / km<small>from</small></span></div>
+  </div>
+</section>
+
+<!-- pillars -->
+<section class="wrap" id="pillars">
+  <div class="sec-head reveal">
+    <span class="micro gold">THE STANDARD</span>
+    <h2>Details are <span class="serif">the product.</span></h2>
+  </div>
+  <div class="pillars">
+    <div class="card pillar reveal"><span class="num">i.</span><h3>The price is the price</h3><p>Quoted before you book, honoured after you arrive. Surge is capped, transparent, and shown to you — never smuggled into the receipt.</p></div>
+    <div class="card pillar reveal"><span class="num">ii.</span><h3>Safety, engineered in</h3><p>OTP-verified starts, masked calls, live trip sharing and a one-touch SOS wired to a 24/7 response desk. Every ride, without exception.</p></div>
+    <div class="card pillar reveal"><span class="num">iii.</span><h3>A fleet worth trusting</h3><p>Every partner passes identity, licence and background verification. Vehicles are inspected; ratings are earned, not assumed.</p></div>
+  </div>
+</section>
+
+<!-- membership -->
+<section class="wrap" id="one">
+  <div class="band reveal">
+    <div>
+      <span class="micro gold">MEMBERSHIP</span>
+      <h2 style="margin-top:14px">RYDR <span class="serif">One.</span></h2>
+      <p class="lead">One membership. Every ride, elevated.</p>
+      <ul>
+        <li>Zero surge, forever — members ride at base fare in any weather</li>
+        <li>Priority matching — the nearest car is yours first</li>
+        <li>10% off every fare, on every tier</li>
+        <li>Cancellation grace, doubled</li>
+      </ul>
+      <a class="btn btn-gold" style="margin-top:34px" href="/rider">Join for ₹149 / month</a>
+    </div>
+    <div class="one-card">
+      <div class="top"><span class="brand">RYDR ONE</span><span class="chip"></span></div>
+      <div class="no">8412 &nbsp;77 &nbsp;0001</div>
+      <div class="holder"><span>Member</span><span>Since 2026</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- drive -->
+<section class="wrap" id="drive">
+  <div class="drive">
+    <div class="reveal">
+      <span class="micro em">FOR PARTNERS</span>
+      <h2>Own the <span class="serif">road.</span></h2>
+      <p class="lead" style="margin-bottom:44px">Fair take rates, daily settlements, incentives you can actually hit — and an app that respects your time as much as your riders'.</p>
+      <a class="btn btn-em" href="/driver">Open the partner app</a>
+    </div>
+    <div class="reveal">
+      <div class="d-stat"><b>₹45,000<i>+</i></b><span>average monthly partner earnings</span></div>
+      <div class="d-stat"><b>78<i>%</i></b><span>of every fare goes to the partner</span></div>
+      <div class="d-stat"><b>Daily</b><span>settlements, with instant payout on demand</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="f-grid">
+      <div>
+        <a class="logo" href="/">RYD<i>R</i></a>
+        <p style="color:var(--mut);font-size:13px;margin-top:16px;max-width:300px;line-height:1.7">The premium ride-hailing platform. A concept product — not affiliated with Ola / ANI Technologies.</p>
+      </div>
+      <div><h5>Product</h5><a href="/rider">Rider app</a><a href="/driver">Partner app</a><a href="/admin">Ops console</a><a href="#fleet">Fleet & fares</a></div>
+      <div><h5>Company</h5><a href="#">About</a><a href="#">Careers</a><a href="#">Journal</a><a href="#">Press</a></div>
+      <div><h5>Legal</h5><a href="#">Terms</a><a href="#">Privacy</a><a href="#">Safety</a><a href="#">Refunds</a></div>
+    </div>
+    <div class="f-bottom"><span>© 2026 RYDR MOBILITY</span><span>MADE WITH RESTRAINT</span></div>
+  </div>
+</footer>
+
+<script src="/assets/api.js"></script>
+<script>
+/* reveal */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.1});
+$$('.reveal').forEach(el=>io.observe(el));
+
+/* showcase: ambient fleet drifting (decorative, no auth needed) */
+const cars=[];
+const host=$('#scCars');
+const EMO={bike:'🏍',auto:'🛺',mini:'🚗',prime:'🚘',ev:'⚡'};
+const cats=['auto','mini','bike','prime','ev','auto','mini','auto'];
+for(let i=0;i<8;i++){
+  const el=document.createElement('div');
+  el.className='sc-car'+(i%3===0?' gold':'');
+  el.textContent=EMO[cats[i]];
+  el.style.left=(8+Math.random()*84)+'%';
+  el.style.top=(12+Math.random()*74)+'%';
+  host.appendChild(el);cars.push(el);
+}
+$('#scCount').textContent=`${(4300+Math.floor(Math.random()*120)).toLocaleString('en-IN')} vehicles in motion`;
+setInterval(()=>{
+  cars.forEach(el=>{
+    const l=parseFloat(el.style.left),t=parseFloat(el.style.top);
+    el.style.left=Math.max(4,Math.min(94,l+(Math.random()-.5)*9))+'%';
+    el.style.top=Math.max(8,Math.min(88,t+(Math.random()-.5)*9))+'%';
+  });
+},2400);
+</script>
+</body>
+</html>
