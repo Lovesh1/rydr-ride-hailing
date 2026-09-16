@@ -1,0 +1,26 @@
+# Local production-like stack: server + hourly backup sidecar.
+services:
+  ryder:
+    build: .
+    ports:
+      - "4321:4321"
+    environment:
+      NODE_ENV: production
+      RYDER_SECRET: ${RYDER_SECRET:?set RYDER_SECRET in .env}
+      RYDER_EXPOSE_DEMO_OTP: "true"   # flip to "false" once SMS gateway is wired
+      LOG_LEVEL: info
+    volumes:
+      - ryder-data:/data
+    restart: unless-stopped
+
+  backup:
+    build: .
+    entrypoint: ["/bin/sh", "-c", "while true; do node scripts/backup.js /data/backups; sleep 3600; done"]
+    volumes:
+      - ryder-data:/data
+    depends_on:
+      - ryder
+    restart: unless-stopped
+
+volumes:
+  ryder-data:

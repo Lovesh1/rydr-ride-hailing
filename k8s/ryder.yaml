@@ -1,0 +1,135 @@
+# Ryder on Kubernetes — StatefulSet (SQLite volume) + Service + Ingress + HPA.
+# NOTE: with the single-writer SQLite phase you scale VERTICALLY (bigger node) and
+# keep replicas=1; the Postgres migration in docs/PRODUCTION.md §5 unlocks
+# horizontal replicas — the HPA below is pre-wired for that phase.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ryder
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ryder-secrets
+  namespace: ryder
+type: Opaque
+stringData:
+  RYDER_SECRET: "CHANGE-ME-use-sealed-secrets-or-external-secrets-operator"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ryder
+  namespace: ryder
+spec:
+  serviceName: ryder
+  replicas: 1
+  selector:
+    matchLabels: { app: ryder }
+  template:
+    metadata:
+      labels: { app: ryder }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4321"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1000
+      containers:
+        - name: ryder
+          image: ghcr.io/lovesh1/ryder:latest
+          ports: [{ containerPort: 4321 }]
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: RYDER_EXPOSE_DEMO_OTP
+              value: "false"
+            - name: RYDER_SECRET
+              valueFrom: { secretKeyRef: { name: ryder-secrets, key: RYDER_SECRET } }
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: /ready, port: 4321 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 4321 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          lifecycle:
+            preStop:                      # let the LB drain before SIGTERM lands
+              exec: { command: ["sleep", "5"] }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 10Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ryder
+  namespace: ryder
+spec:
+  selector: { app: ryder }
+  ports: [{ port: 80, targetPort: 4321 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ryder
+  namespace: ryder
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"   # SSE streams
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  tls:
+    - hosts: [api.ryder.example.com]
+      secretName: ryder-tls
+  rules:
+    - host: api.ryder.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: ryder, port: { number: 80 } } }
+---
+# Pre-wired for the stateless (Postgres+Redis) phase — inert at replicas=1.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ryder
+  namespace: ryder
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: StatefulSet, name: ryder }
+  minReplicas: 1
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+---
+# Hourly consistent backup (VACUUM INTO on the shared volume).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ryder-backup
+  namespace: ryder
+spec:
+  schedule: "0 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: ghcr.io/lovesh1/ryder:latest
+              command: ["node", "scripts/backup.js", "/data/backups"]
+              volumeMounts: [{ name: data, mountPath: /data }]
+          volumes:
+            - name: data
+              persistentVolumeClaim: { claimName: data-ryder-0 }

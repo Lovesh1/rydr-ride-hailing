@@ -16,11 +16,12 @@ export function signToken(payload, ttlMs = 1000 * 60 * 60 * 24 * 7) {
 }
 
 export function verifyToken(token) {
-  if (!token) return null;
+  if (!token || typeof token !== 'string' || token.length > 2048) return null;
   const [body, sig] = token.split('.');
   if (!body || !sig) return null;
   const expect = crypto.createHmac('sha256', SECRET).update(body).digest('base64url');
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
+  const a = Buffer.from(sig), b = Buffer.from(expect);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
   try {
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
     if (payload.exp < now()) return null;

@@ -8,6 +8,8 @@ import {
   estimateOutstation,
 } from './pricing.js';
 import { emitTo, emitAdmins } from './events.js';
+import { inc } from './metrics.js';
+import { log } from './logger.js';
 
 const OFFER_TIMEOUT_MS = 15000;
 const MAX_WAVES = 3;
@@ -284,6 +286,8 @@ export function completeRide(rideId, driverId) {
     ledger(r.rider_id, 'promo_credit', 0, `promo ${r.promo_code} saved ₹${r.promo_discount}`, rideId);
   }
 
+  inc('ryder_business_events_total', { event: 'ride_completed', type: r.type });
+  log.info('ride.completed', { ride: rideId, fare, driver: driverId, wait_min: r.waiting_min });
   pushRide(rideId);
   return rideView(rideId);
 }

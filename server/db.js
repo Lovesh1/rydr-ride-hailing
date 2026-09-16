@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 import { uid, now } from './lib.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const DATA_DIR = process.env.RYDER_DATA_DIR || path.join(__dirname, '..', 'data');
 mkdirSync(DATA_DIR, { recursive: true });
 
 export const db = new DatabaseSync(path.join(DATA_DIR, 'ryder.db'));
@@ -163,7 +163,18 @@ CREATE TABLE IF NOT EXISTS audit_log (
   admin_id TEXT, action TEXT, target TEXT, detail TEXT,
   created_at INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+  key TEXT PRIMARY KEY,               -- client-supplied Idempotency-Key header
+  user_id TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  response_json TEXT NOT NULL,        -- the response we already gave for this key
+  created_at INTEGER NOT NULL
+);
 `);
+
+/* prune idempotency keys older than 24h on boot (and daily via ops cron) */
+db.prepare('DELETE FROM idempotency_keys WHERE created_at < ?').run(Date.now() - 24 * 3600 * 1000);
 
 /* ================= seed ================= */
 const BLR = { lat: 12.9352, lng: 77.6245 };

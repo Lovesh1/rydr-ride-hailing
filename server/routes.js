@@ -8,15 +8,39 @@ import {
 } from './rides.js';
 import { subscribe, emitAdmins, emitTo } from './events.js';
 
+import crypto from 'node:crypto';
+import { CONFIG } from './config.js';
+import { inc } from './metrics.js';
+import { log } from './logger.js';
+
 const ADMIN_PHONE = '+919999900000';
-const OTP_TTL = 5 * 60 * 1000;
+const OTP_TTL = CONFIG.otpTtlMs;
 const REFERRAL_BONUS = 100;
 const PRIME_PRICE = 149;
 const PRIME_DAYS = 30;
 
+const hashOtp = (code, phone) =>
+  crypto.createHmac('sha256', CONFIG.secret).update(`${phone}:${code}`).digest('hex');
+
 const audit = (adminId, action, target, detail = '') =>
   db.prepare('INSERT INTO audit_log (id,admin_id,action,target,detail,created_at) VALUES (?,?,?,?,?,?)')
     .run(uid('au'), adminId, action, target, detail, now());
+
+/* Idempotency: for money/booking POSTs, replay the stored response when the
+   client retries with the same Idempotency-Key (network flake, double-tap). */
+function idempotent(req, userId, endpoint, res, produce) {
+  const k = req.headers['idempotency-key'];
+  if (!k || typeof k !== 'string' || k.length > 128) return produce();
+  const hit = db.prepare('SELECT response_json FROM idempotency_keys WHERE key = ? AND user_id = ? AND endpoint = ?')
+    .get(k, userId, endpoint);
+  if (hit) { res.setHeader('Idempotency-Replayed', 'true'); return ok(res, JSON.parse(hit.response_json)); }
+  return produce((payload) => {
+    try {
+      db.prepare('INSERT OR IGNORE INTO idempotency_keys (key,user_id,endpoint,response_json,created_at) VALUES (?,?,?,?,?)')
+        .run(k, userId, endpoint, JSON.stringify(payload), now());
+    } catch {}
+  });
+}
 
 export async function route(req, res, url) {
   const p = url.pathname;
@@ -28,22 +52,31 @@ export async function route(req, res, url) {
     const { phone } = await readBody(req);
     if (!/^\+?[0-9]{10,14}$/.test(phone || '')) return bad(res, 'valid phone required');
     const code = otp6();
+    // only the HMAC of the code is stored — a leaked DB cannot mint logins
+    const h = hashOtp(code, phone);
     db.prepare('INSERT INTO otps (phone,code,expires_at,attempts) VALUES (?,?,?,0) ON CONFLICT(phone) DO UPDATE SET code=?, expires_at=?, attempts=0')
-      .run(phone, code, now() + OTP_TTL, code, now() + OTP_TTL);
+      .run(phone, h, now() + OTP_TTL, h, now() + OTP_TTL);
     // PRODUCTION: hand `code` to an SMS gateway (Twilio Verify / MSG91) here.
-    console.log(`[auth] OTP for ${phone}: ${code}`);
-    return ok(res, { sent: true, demo_otp: code });
+    inc('ryder_business_events_total', { event: 'otp_sent' });
+    log.info('auth.otp_sent', { phone: phone.slice(0, 6) + '…' });
+    const body = { sent: true };
+    if (CONFIG.exposeDemoOtp) body.demo_otp = code;   // demo only; off in prod
+    return ok(res, body);
   }
 
   if (p === '/api/auth/verify' && m === 'POST') {
     const { phone, otp, name, role, referral } = await readBody(req);
     const row = db.prepare('SELECT * FROM otps WHERE phone = ?').get(phone);
     if (!row || row.expires_at < now()) return bad(res, 'OTP expired — request a new one');
-    if (row.attempts >= 5) return bad(res, 'too many attempts');
-    if (row.code !== String(otp)) {
+    if (row.attempts >= CONFIG.otpMaxAttempts) return bad(res, 'too many attempts — request a new code', 429);
+    const given = Buffer.from(hashOtp(String(otp || ''), phone));
+    const stored = Buffer.from(row.code);
+    if (given.length !== stored.length || !crypto.timingSafeEqual(given, stored)) {
       db.prepare('UPDATE otps SET attempts = attempts + 1 WHERE phone = ?').run(phone);
+      inc('ryder_business_events_total', { event: 'otp_failed' });
       return bad(res, 'incorrect OTP');
     }
+    inc('ryder_business_events_total', { event: 'login' });
     db.prepare('DELETE FROM otps WHERE phone = ?').run(phone);
 
     let user = db.prepare('SELECT * FROM users WHERE phone = ?').get(phone);
@@ -113,17 +146,22 @@ export async function route(req, res, url) {
   /* ================= RIDER ================= */
   if (p === '/api/rides' && m === 'POST') {
     if (me.role !== 'rider') return bad(res, 'riders only', 403);
-    const active = db.prepare("SELECT id FROM rides WHERE rider_id = ? AND status IN ('SEARCHING','ACCEPTED','ARRIVED','ONGOING')").get(me.id);
-    if (active) return bad(res, 'you already have an active ride');
     const body = await readBody(req);
-    try {
-      const r = createRide(me.id, body);
-      if ((body.payment_method === 'wallet' || !body.payment_method) && me.wallet_balance < r.fare_quoted) {
-        cancelRide(r.id, me.id, 'rider', 'insufficient balance');
-        return bad(res, `insufficient wallet balance (₹${Math.round(me.wallet_balance)}) — top up or pay cash`);
-      }
-      return ok(res, r);
-    } catch (e) { return bad(res, e.message); }
+    return idempotent(req, me.id, 'create_ride', res, (store) => {
+      if (!body.pickup?.lat || !body.category) return bad(res, 'pickup and category required');
+      const active = db.prepare("SELECT id FROM rides WHERE rider_id = ? AND status IN ('SEARCHING','ACCEPTED','ARRIVED','ONGOING')").get(me.id);
+      if (active) return bad(res, 'you already have an active ride');
+      try {
+        const r = createRide(me.id, body);
+        if ((body.payment_method === 'wallet' || !body.payment_method) && me.wallet_balance < r.fare_quoted) {
+          cancelRide(r.id, me.id, 'rider', 'insufficient balance');
+          return bad(res, `insufficient wallet balance (₹${Math.round(me.wallet_balance)}) — top up or pay cash`);
+        }
+        inc('ryder_business_events_total', { event: 'ride_requested', type: r.type });
+        if (store) store(r);
+        return ok(res, r);
+      } catch (e) { return bad(res, e.message); }
+    });
   }
 
   if (p === '/api/rides/active' && m === 'GET') {
@@ -193,8 +231,13 @@ export async function route(req, res, url) {
     const { amount } = await readBody(req);
     const amt = Math.min(Math.max(Number(amount) || 0, 1), 10000);
     // PRODUCTION: create a Razorpay/Stripe order here and credit on webhook confirmation.
-    const bal = ledger(me.id, 'topup', amt, 'added via UPI (demo gateway)');
-    return ok(res, { balance: bal });
+    return idempotent(req, me.id, 'topup', res, (store) => {
+      const bal = ledger(me.id, 'topup', amt, 'added via UPI (demo gateway)');
+      inc('ryder_business_events_total', { event: 'topup' });
+      const payload = { balance: bal };
+      if (store) store(payload);
+      return ok(res, payload);
+    });
   }
 
   /* ---------- prime membership ---------- */
