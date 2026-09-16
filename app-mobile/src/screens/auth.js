@@ -42,15 +42,18 @@ export default function AuthScreen({ onSignedIn }) {
   return (
     <KeyboardAvoidingView style={S.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 30 }}>
-        <View style={{
-          width: 58, height: 58, borderRadius: 20, backgroundColor: C.emerald,
-          alignItems: 'center', justifyContent: 'center', marginBottom: 26,
-        }}>
-          <Text style={{ fontFamily: F.uiHeavy, fontSize: 24, color: C.white }}>R</Text>
+        <View style={[S.row, { gap: 12, marginBottom: 28 }]}>
+          <View style={{
+            width: 54, height: 54, borderRadius: 18, backgroundColor: C.emerald,
+            alignItems: 'center', justifyContent: 'center',
+            transform: [{ rotate: '-6deg' }],
+          }}>
+            <Text style={{ fontFamily: F.uiHeavy, fontSize: 24, color: C.white }}>R</Text>
+          </View>
+          <Text style={{ fontFamily: F.uiHeavy, fontSize: 22, color: C.ink, letterSpacing: -0.5 }}>Ryder</Text>
         </View>
-        <Micro color={C.gold}>WELCOME TO RYDER</Micro>
-        <Text style={[S.h1, { fontSize: 40, marginTop: 12 }]}>
-          Go places,{'\n'}<Text style={[S.serif, { fontSize: 40 }]}>joyfully.</Text>
+        <Text style={[S.h1, { fontSize: 42, lineHeight: 46 }]}>
+          Tap.{'\n'}<Text style={{ color: C.emerald }}>Ride.</Text>{'\n'}Arrive.
         </Text>
         <Text style={[S.body, { marginTop: 14, marginBottom: 30 }]}>
           {role === 'rider'

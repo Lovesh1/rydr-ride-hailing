@@ -13,15 +13,15 @@ export const S = StyleSheet.create({
     borderColor: C.hair, ...shadow.card,
   },
   row: { flexDirection: 'row', alignItems: 'center' },
-  h1: { fontFamily: F.uiHeavy, fontSize: 30, color: C.ink, letterSpacing: -0.8 },
-  h2: { fontFamily: F.uiBold, fontSize: 21, color: C.ink, letterSpacing: -0.4 },
-  h3: { fontFamily: F.uiBold, fontSize: 16, color: C.ink },
-  serif: { fontFamily: F.serif, color: C.emerald },
-  body: { fontFamily: F.ui, fontSize: 14, color: C.inkSoft, lineHeight: 21 },
-  mut: { fontFamily: F.ui, fontSize: 12.5, color: C.mut },
+  h1: { fontFamily: F.uiHeavy, fontSize: 34, color: C.ink, letterSpacing: -1.2 },
+  h2: { fontFamily: F.uiHeavy, fontSize: 23, color: C.ink, letterSpacing: -0.6 },
+  h3: { fontFamily: F.uiBold, fontSize: 16, color: C.ink, letterSpacing: -0.2 },
+  serif: { fontFamily: F.uiHeavy, color: C.emerald },
+  body: { fontFamily: F.uiSemi, fontSize: 14, color: C.inkSoft, lineHeight: 21 },
+  mut: { fontFamily: F.uiSemi, fontSize: 12.5, color: C.mut },
   micro: {
-    fontFamily: F.uiBold, fontSize: 10.5, color: C.mut,
-    letterSpacing: 2.2, textTransform: 'uppercase',
+    fontFamily: F.uiHeavy, fontSize: 10.5, color: C.mut,
+    letterSpacing: 1.8, textTransform: 'uppercase',
   },
 });
 
@@ -34,9 +34,9 @@ export function Btn({ title, onPress, kind = 'primary', style, disabled, small }
     primary: { bg: C.emerald, fg: C.white, bd: C.emerald },
     dark: { bg: C.ink, fg: C.white, bd: C.ink },
     gold: { bg: C.gold, fg: C.white, bd: C.gold },
-    soft: { bg: C.mint, fg: C.emeraldDark, bd: C.mintDeep },
-    ghost: { bg: 'transparent', fg: C.inkSoft, bd: C.hairDark },
-    danger: { bg: C.redSoft, fg: C.red, bd: '#F0CFC9' },
+    soft: { bg: C.mint, fg: C.emeraldDark, bd: C.mint },
+    ghost: { bg: C.surface, fg: C.inkSoft, bd: C.hairDark },
+    danger: { bg: C.redSoft, fg: C.red, bd: C.redSoft },
   };
   const k = kinds[kind] || kinds.primary;
   return (
@@ -45,13 +45,13 @@ export function Btn({ title, onPress, kind = 'primary', style, disabled, small }
       disabled={disabled}
       onPress={onPress}
       style={[{
-        backgroundColor: k.bg, borderWidth: 1, borderColor: k.bd,
-        borderRadius: R.pill, paddingVertical: small ? 10 : 16,
+        backgroundColor: k.bg, borderWidth: 1.5, borderColor: k.bd,
+        borderRadius: R.pill, paddingVertical: small ? 11 : 17,
         paddingHorizontal: small ? 18 : 26, alignItems: 'center',
         opacity: disabled ? 0.45 : 1,
-      }, kind === 'primary' && shadow.card, style]}
+      }, (kind === 'primary' || kind === 'dark') && shadow.card, style]}
     >
-      <Text style={{ fontFamily: F.uiBold, fontSize: small ? 12.5 : 15, color: k.fg, letterSpacing: 0.2 }}>
+      <Text style={{ fontFamily: F.uiHeavy, fontSize: small ? 12.5 : 15.5, color: k.fg, letterSpacing: 0.1 }}>
         {title}
       </Text>
     </TouchableOpacity>
@@ -146,10 +146,10 @@ export function MapCanvas({ height = 240, children, style }) {
   return (
     <View style={[{
       height, borderRadius: R.lg, overflow: 'hidden',
-      backgroundColor: '#EDF2EC', borderWidth: 1, borderColor: C.hair,
+      backgroundColor: '#E9EEF5', borderWidth: 1, borderColor: C.hair,
     }, style]}>
-      <View style={{ position: 'absolute', width: '55%', height: '55%', borderRadius: 999, backgroundColor: '#0B845710', top: '-12%', left: '-10%' }} />
-      <View style={{ position: 'absolute', width: '45%', height: '45%', borderRadius: 999, backgroundColor: '#AE8A4A0E', bottom: '-8%', right: '-6%' }} />
+      <View style={{ position: 'absolute', width: '55%', height: '55%', borderRadius: 999, backgroundColor: '#4353FF0F', top: '-12%', left: '-10%' }} />
+      <View style={{ position: 'absolute', width: '45%', height: '45%', borderRadius: 999, backgroundColor: '#FF7A1A0C', bottom: '-8%', right: '-6%' }} />
       {lines}
       <View style={{ position: 'absolute', left: '-10%', right: '-10%', top: '38%', height: 10, backgroundColor: '#FFFFFF', transform: [{ rotate: '-9deg' }], borderRadius: 6 }} />
       <View style={{ position: 'absolute', left: '-10%', right: '-10%', top: '66%', height: 7, backgroundColor: '#FFFFFF', transform: [{ rotate: '14deg' }], borderRadius: 6 }} />
@@ -246,10 +246,10 @@ export function OtpDigits({ code }) {
     <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10 }}>
       {[...String(code || '')].map((d, i) => (
         <View key={i} style={{
-          width: 46, height: 54, borderRadius: 14, backgroundColor: C.goldSoft,
-          borderWidth: 1, borderColor: '#E5D6B2', alignItems: 'center', justifyContent: 'center',
+          width: 46, height: 54, borderRadius: 14, backgroundColor: C.ink,
+          alignItems: 'center', justifyContent: 'center', ...shadow.card,
         }}>
-          <Text style={{ fontFamily: F.uiHeavy, fontSize: 22, color: C.gold }}>{d}</Text>
+          <Text style={{ fontFamily: F.uiHeavy, fontSize: 22, color: C.white }}>{d}</Text>
         </View>
       ))}
     </View>

@@ -340,11 +340,11 @@ function EarningsScreen() {
     <ScrollView style={S.screen} contentContainerStyle={{ padding: 22, paddingBottom: 34 }}>
       <Text style={S.h1}>Earnings<Text style={S.serif}>.</Text></Text>
       <View style={[S.card, { marginTop: 16, padding: 24, backgroundColor: C.emerald, borderColor: C.emeraldDark }]}>
-        <Micro color="#BFE8D6">THIS WEEK</Micro>
+        <Micro color="#C7CDFF">THIS WEEK</Micro>
         <Text style={{ fontFamily: F.uiHeavy, fontSize: 42, color: C.white, marginTop: 6 }}>
           {inr(sum?.week?.earnings ?? 0)}
         </Text>
-        <Text style={{ fontFamily: F.ui, fontSize: 12.5, color: '#BFE8D6', marginTop: 4 }}>
+        <Text style={{ fontFamily: F.ui, fontSize: 12.5, color: '#C7CDFF', marginTop: 4 }}>
           {sum?.week?.trips ?? 0} trips · balance {inr(sum?.balance ?? 0)} · acceptance {sum?.acceptance ?? 100}%
         </Text>
         <TouchableOpacity onPress={() => toast('Instant payout initiated — funds reach your bank in minutes')}

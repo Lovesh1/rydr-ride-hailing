@@ -3,33 +3,33 @@
    emerald + soft gold on ivory, generous radii, soft shadows
    ================================================================ */
 :root{
-  --bg:#F6F4EF;
-  --bg2:#FBFAF7;
+  --bg:#F5F7FA;
+  --bg2:#FBFCFE;
   --surface:#FFFFFF;
   --card:#FFFFFF;
   --card-hi:#FBFAF6;
-  --hair:#E8E3D9;
-  --hair-hi:#D8D2C4;
-  --ink:#182420;
-  --ink-dim:#3C4A44;
-  --mut:#79857F;
-  --gold:#AE8A4A;
-  --gold-hi:#8F7038;
-  --gold-dim:#F3EAD7;
-  --emerald:#0B8457;
-  --emerald-deep:#06603E;
-  --emerald-dim:#E3F2EA;
-  --mint-deep:#CBE8D9;
-  --red:#CE5A4E;
-  --red-dim:#FBEAE7;
-  --amber:#B57F22;
-  --amber-dim:#FAF0DC;
+  --hair:#E4E8EF;
+  --hair-hi:#D2D8E2;
+  --ink:#0E1116;
+  --ink-dim:#3A424C;
+  --mut:#69737F;
+  --gold:#FF7A1A;
+  --gold-hi:#E56700;
+  --gold-dim:#FFF1E4;
+  --emerald:#4353FF;
+  --emerald-deep:#2E3BD3;
+  --emerald-dim:#EBEDFF;
+  --mint-deep:#C9CEFF;
+  --red:#F4485D;
+  --red-dim:#FEEBEE;
+  --amber:#B97E08;
+  --amber-dim:#FFF6DE;
   --violet:#7D6BD1;
   --violet-dim:#EEEBFA;
   --r-lg:26px; --r-md:18px; --r-sm:12px;
   --disp:'Manrope','Inter',sans-serif;
   --ui:'Manrope','Inter',system-ui,sans-serif;
-  --serif:'Fraunces','Instrument Serif',Georgia,serif;
+  --serif:'Manrope','Inter',sans-serif;
   --shadow-card:0 8px 26px rgba(24,36,32,.06);
   --shadow-float:0 18px 44px rgba(24,36,32,.12);
 }
@@ -82,7 +82,7 @@ button{font-family:var(--ui)}
 .pill.em{background:var(--emerald-dim);color:var(--emerald-deep);border-color:var(--mint-deep)}
 .pill.gold{background:var(--gold-dim);color:var(--gold);border-color:#E8DCC0}
 .pill.red{background:var(--red-dim);color:var(--red);border-color:#F0CFC9}
-.pill.mut{background:#EFEBE2;color:var(--mut);border-color:var(--hair-hi)}
+.pill.mut{background:#EAEEF4;color:var(--mut);border-color:var(--hair-hi)}
 .pill.amber{background:var(--amber-dim);color:var(--amber);border-color:#EEDDBB}
 .pill.vi{background:var(--violet-dim);color:var(--violet);border-color:#DCD6F2}
 .pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
@@ -99,12 +99,12 @@ button{font-family:var(--ui)}
 
 /* headings */
 .h-disp{font-family:var(--disp);font-weight:800;letter-spacing:-.03em;line-height:1.05}
-.h-serif{font-family:var(--serif);font-style:italic;font-weight:500}
+.h-serif{font-family:var(--serif);font-style:normal;font-weight:800}
 
 .hairline{height:1px;background:var(--hair);border:none}
 
 @keyframes shimmer{from{background-position:-400px 0}to{background-position:400px 0}}
-.skel{background:linear-gradient(90deg,#EFEBE2 25%,#F7F4EC 50%,#EFEBE2 75%);
+.skel{background:linear-gradient(90deg,#EAEEF4 25%,#F4F7FB 50%,#EAEEF4 75%);
   background-size:800px 100%;animation:shimmer 1.4s infinite;border-radius:10px}
 
 .reveal{opacity:0;transform:translateY(22px);transition:all .8s cubic-bezier(.16,.7,.3,1)}
@@ -115,7 +115,7 @@ button{font-family:var(--ui)}
 ::-webkit-scrollbar-track{background:transparent}
 
 /* stylised light map surface */
-.mapsurface{position:relative;overflow:hidden;background:#EDF2EC}
+.mapsurface{position:relative;overflow:hidden;background:#E9EEF5}
 .mapsurface::before{content:"";position:absolute;inset:0;
   background-image:
     linear-gradient(rgba(24,36,32,.045) 1px,transparent 1px),

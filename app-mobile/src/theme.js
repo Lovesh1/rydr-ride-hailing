@@ -1,56 +1,62 @@
-// Ryder design system — warm porcelain light theme, emerald + gold accents
+// Ryder design system v4 — "Volt on Ink"
+// Built from the researched playbook: 60/30/10 color (one electric accent doing
+// all the work), cool near-white base, white bento cards, near-black ink type,
+// pastel category tiles, chunky high-contrast CTAs. No serif flourishes.
+// NOTE: key names are semantic-legacy (emerald/gold/mint/...) so every screen
+// reskins from here without edits — values define the new language.
 export const C = {
-  bg: '#F6F4EF',          // warm porcelain
+  bg: '#F5F7FA',          // cool near-white canvas
   surface: '#FFFFFF',
-  sand: '#F0EAE0',
-  mint: '#E3F2EA',
-  mintDeep: '#CBE8D9',
-  ink: '#182420',          // deep pine ink
-  inkSoft: '#3C4A44',
-  mut: '#79857F',
-  hair: '#E8E3D9',
-  hairDark: '#D8D2C4',
-  emerald: '#0B8457',
-  emeraldDark: '#06603E',
-  gold: '#AE8A4A',
-  goldSoft: '#F3EAD7',
-  red: '#CE5A4E',
-  redSoft: '#FBEAE7',
-  amber: '#D99E3B',
-  amberSoft: '#FAF0DC',
-  violet: '#7D6BD1',
-  violetSoft: '#EEEBFA',
+  sand: '#EDF1F6',        // neutral chip / input tint
+  mint: '#EBEDFF',        // accent-soft (selected states)
+  mintDeep: '#C9CEFF',    // accent-soft border
+  ink: '#0E1116',         // near-black
+  inkSoft: '#3A424C',
+  mut: '#69737F',         // calm gray body
+  hair: '#E4E8EF',
+  hairDark: '#D2D8E2',
+  emerald: '#4353FF',     // ★ the accent: electric ultramarine
+  emeraldDark: '#2E3BD3',
+  gold: '#FF7A1A',        // secondary pop: tangerine (highlights, stars, OTP)
+  goldSoft: '#FFF1E4',
+  red: '#F4485D',
+  redSoft: '#FEEBEE',
+  amber: '#E9A200',
+  amberSoft: '#FFF6DE',
+  violet: '#8B5CF6',
+  violetSoft: '#F1EBFE',
   white: '#FFFFFF',
 };
 
-export const R = { lg: 26, md: 18, sm: 12, pill: 999 };
+export const R = { lg: 28, md: 18, sm: 12, pill: 999 };
 
 export const F = {
   ui: 'Manrope_500Medium',
   uiSemi: 'Manrope_600SemiBold',
   uiBold: 'Manrope_700Bold',
   uiHeavy: 'Manrope_800ExtraBold',
-  serif: 'Fraunces_500Medium_Italic',
+  serif: 'Manrope_800ExtraBold',   // serif retired — accent text is bold sans now
 };
 
 export const shadow = {
   card: {
-    shadowColor: '#1A2420', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.07, shadowRadius: 22, elevation: 4,
+    shadowColor: '#101828', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06, shadowRadius: 16, elevation: 3,
   },
   float: {
-    shadowColor: '#1A2420', shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.13, shadowRadius: 32, elevation: 9,
+    shadowColor: '#101828', shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.14, shadowRadius: 32, elevation: 10,
   },
 };
 
+/* pastel bento tints per category — soft field + deep icon color */
 export const CATEGORY_META = {
-  bike:  { emoji: '🏍', tint: '#EAF3EC' },
-  auto:  { emoji: '🛺', tint: '#F6EEDC' },
-  mini:  { emoji: '🚗', tint: '#E9EFF7' },
-  prime: { emoji: '🚘', tint: '#F0EBF9' },
-  suv:   { emoji: '🚙', tint: '#F7ECE7' },
-  ev:    { emoji: '⚡', tint: '#E4F4EE' },
+  bike:  { emoji: '🏍', tint: '#E1F6E9', deep: '#0E9F5D' },
+  auto:  { emoji: '🛺', tint: '#FFF1DC', deep: '#D97706' },
+  mini:  { emoji: '🚗', tint: '#E3EEFF', deep: '#2563EB' },
+  prime: { emoji: '🚘', tint: '#F1EBFE', deep: '#7C3AED' },
+  suv:   { emoji: '🚙', tint: '#FDE8EC', deep: '#DB2777' },
+  ev:    { emoji: '⚡', tint: '#E0F7F4', deep: '#0D9488' },
 };
 
 export const inr = (n) => '₹' + Number(n ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });

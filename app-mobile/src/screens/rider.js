@@ -34,46 +34,50 @@ function HomeScreen({ navigation }) {
   }, [active?.id]);
 
   const first = me?.name?.split(' ')[0] || 'there';
+  // bento tiles: each service gets its own pastel field + deep tone
   const services = [
-    { key: 'city', title: 'City ride', sub: 'point to point', emoji: '🚕', onPress: () => navigation.navigate('Search', { mode: 'city' }) },
-    { key: 'rental', title: 'Rentals', sub: 'by the hour', emoji: '⏱', onPress: () => navigation.navigate('Rentals') },
-    { key: 'outstation', title: 'Outstation', sub: 'city to city', emoji: '🛣', onPress: () => navigation.navigate('Outstation') },
-    { key: 'schedule', title: 'Schedule', sub: 'book ahead', emoji: '🗓', onPress: () => navigation.navigate('Search', { mode: 'schedule' }) },
-    { key: 'parcel', title: 'Parcel', sub: 'send packages', emoji: '📦', onPress: () => navigation.navigate('Parcel') },
+    { key: 'rental', title: 'Rentals', sub: 'by the hour', emoji: '⏱', tint: '#FFF1DC', deep: '#D97706', onPress: () => navigation.navigate('Rentals') },
+    { key: 'outstation', title: 'Outstation', sub: 'city to city', emoji: '🛣', tint: '#E1F6E9', deep: '#0E9F5D', onPress: () => navigation.navigate('Outstation') },
+    { key: 'schedule', title: 'Schedule', sub: 'book ahead', emoji: '🗓', tint: '#F1EBFE', deep: '#7C3AED', onPress: () => navigation.navigate('Search', { mode: 'schedule' }) },
+    { key: 'parcel', title: 'Parcel', sub: 'send stuff', emoji: '📦', tint: '#FDE8EC', deep: '#DB2777', onPress: () => navigation.navigate('Parcel') },
   ];
 
   return (
     <ScrollView style={S.screen} contentContainerStyle={{ paddingBottom: 30 }}>
-      <View style={[S.pad, S.row, { justifyContent: 'space-between', paddingTop: 18 }]}>
+      <View style={[S.pad, S.row, { justifyContent: 'space-between', paddingTop: 20 }]}>
         <View>
-          <Micro color={C.gold}>GOOD {new Date().getHours() < 12 ? 'MORNING' : new Date().getHours() < 17 ? 'AFTERNOON' : 'EVENING'}</Micro>
-          <Text style={[S.h1, { marginTop: 6 }]}>
-            Hey {first}<Text style={S.serif}>.</Text>
-          </Text>
+          <Text style={S.mut}>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'} ☀</Text>
+          <Text style={[S.h1, { marginTop: 4 }]}>Hey {first}</Text>
         </View>
         {me && (me.prime_until || 0) > Date.now()
           ? <Pill text="PRIME ✦" tone="gold" />
           : <Pill text={inr(me?.wallet_balance ?? 0)} tone="em" />}
       </View>
 
-      <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('Search', { mode: 'city' })}
-        style={[S.card, S.row, { marginHorizontal: 22, marginTop: 18, padding: 18, gap: 14 }]}>
-        <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: C.emerald }} />
-        <Text style={{ fontFamily: F.uiSemi, fontSize: 15.5, color: C.mut }}>Where to today?</Text>
+      {/* hero search — high-contrast ink card */}
+      <TouchableOpacity activeOpacity={0.92} onPress={() => navigation.navigate('Search', { mode: 'city' })}
+        style={[{ marginHorizontal: 22, marginTop: 18, padding: 22, borderRadius: R.lg, backgroundColor: C.ink }, shadow.float]}>
+        <Text style={{ fontFamily: F.uiHeavy, fontSize: 20, color: C.white, letterSpacing: -0.4 }}>Where to?</Text>
+        <View style={[S.row, { marginTop: 14, backgroundColor: '#FFFFFF14', borderRadius: 999, paddingVertical: 13, paddingHorizontal: 18, gap: 12 }]}>
+          <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: C.emerald }} />
+          <Text style={{ fontFamily: F.uiSemi, fontSize: 14.5, color: '#B9C0CC' }}>Search destination</Text>
+          <View style={{ marginLeft: 'auto', backgroundColor: C.emerald, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14 }}>
+            <Text style={{ fontFamily: F.uiHeavy, fontSize: 12, color: C.white }}>GO</Text>
+          </View>
+        </View>
       </TouchableOpacity>
 
+      {/* bento services — asymmetric pastel grid */}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: 16 }}>
         {services.map(sv => (
           <TouchableOpacity key={sv.key} activeOpacity={0.9} onPress={sv.onPress}
-            style={[S.card, { width: '46%', marginHorizontal: '2%', marginBottom: 12, padding: 18 }]}>
-            <View style={{
-              width: 42, height: 42, borderRadius: 14, backgroundColor: C.mint,
-              alignItems: 'center', justifyContent: 'center', marginBottom: 12,
-            }}>
-              <Text style={{ fontSize: 18 }}>{sv.emoji}</Text>
-            </View>
-            <Text style={S.h3}>{sv.title}</Text>
-            <Text style={[S.mut, { marginTop: 3 }]}>{sv.sub}</Text>
+            style={[{
+              width: '46%', marginHorizontal: '2%', marginBottom: 12, padding: 18,
+              borderRadius: 22, backgroundColor: sv.tint,
+            }]}>
+            <Text style={{ fontSize: 26 }}>{sv.emoji}</Text>
+            <Text style={[S.h3, { marginTop: 12, color: sv.deep }]}>{sv.title}</Text>
+            <Text style={[S.mut, { marginTop: 2, fontSize: 12 }]}>{sv.sub}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -96,14 +100,16 @@ function HomeScreen({ navigation }) {
         </MapCanvas>
       </View>
 
-      <View style={[S.card, S.row, {
-        marginHorizontal: 22, marginTop: 14, padding: 16, gap: 12,
-        backgroundColor: C.goldSoft, borderColor: '#E8DCC0',
+      <View style={[S.row, {
+        marginHorizontal: 22, marginTop: 6, padding: 18, gap: 14,
+        borderRadius: 22, backgroundColor: C.mint,
       }]}>
-        <Text style={{ fontSize: 18 }}>✦</Text>
+        <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: C.emerald, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 16, color: C.white }}>%</Text>
+        </View>
         <View style={{ flex: 1 }}>
-          <Text style={[S.h3, { fontSize: 13.5, color: C.gold }]}>FIRST50 — half price on your first 3 rides</Text>
-          <Text style={S.mut}>up to ₹75 off · auto-typed at checkout</Text>
+          <Text style={[S.h3, { fontSize: 14, color: C.emeraldDark }]}>FIRST50 · half off your first 3 rides</Text>
+          <Text style={[S.mut, { marginTop: 1 }]}>up to ₹75 · auto-applied at checkout</Text>
         </View>
       </View>
     </ScrollView>
@@ -1024,16 +1030,17 @@ function WalletScreen() {
     <ScrollView style={S.screen} contentContainerStyle={{ padding: 22, paddingBottom: 34 }}>
       <Text style={S.h1}>Wallet<Text style={S.serif}>.</Text></Text>
 
-      <View style={[S.card, { marginTop: 16, padding: 24, backgroundColor: C.emerald, borderColor: C.emeraldDark }]}>
-        <Micro color="#BFE8D6">RYDER CASH</Micro>
-        <Text style={{ fontFamily: F.uiHeavy, fontSize: 42, color: C.white, marginTop: 6 }}>{inr(w?.balance)}</Text>
+      <View style={[{ marginTop: 16, padding: 24, borderRadius: R.lg, backgroundColor: C.emerald, overflow: 'hidden' }, shadow.float]}>
+        <View style={{ position: 'absolute', width: 190, height: 190, borderRadius: 95, backgroundColor: '#FFFFFF1A', top: -70, right: -50 }} />
+        <View style={{ position: 'absolute', width: 120, height: 120, borderRadius: 60, backgroundColor: '#FFFFFF12', bottom: -50, left: -30 }} />
+        <Micro color="#C7CDFF">RYDER CASH</Micro>
+        <Text style={{ fontFamily: F.uiHeavy, fontSize: 44, color: C.white, marginTop: 6, letterSpacing: -1 }}>{inr(w?.balance)}</Text>
         <View style={[S.row, { gap: 9, marginTop: 16 }]}>
           {[100, 250, 500].map(a => (
             <TouchableOpacity key={a} onPress={() => topup(a)} style={{
-              flex: 1, backgroundColor: '#FFFFFF22', borderWidth: 1, borderColor: '#FFFFFF44',
-              borderRadius: 12, paddingVertical: 11, alignItems: 'center',
+              flex: 1, backgroundColor: '#FFFFFF22', borderRadius: 999, paddingVertical: 12, alignItems: 'center',
             }}>
-              <Text style={{ fontFamily: F.uiBold, fontSize: 13, color: C.white }}>+ ₹{a}</Text>
+              <Text style={{ fontFamily: F.uiHeavy, fontSize: 13, color: C.white }}>+ ₹{a}</Text>
             </TouchableOpacity>
           ))}
         </View>
