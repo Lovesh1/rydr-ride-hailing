@@ -1,10 +1,20 @@
-/* RYDR client SDK — auth, REST, SSE realtime */
+/* Ryder client SDK — auth, REST, SSE realtime.
+   DEMO mode: on a static host (GitHub Pages) with no backend, all calls run
+   against the embedded in-browser engine (assets/engine.js). */
+const DEMO = typeof RyderEngine !== 'undefined' &&
+  !/^(localhost|127\.|192\.168\.|10\.|0\.0\.0\.0)/.test(location.hostname);
+
 const API = {
   tokenKey: 'rydr_token',
   get token() { try { return localStorage.getItem(this.tokenKey); } catch { return null; } },
   set token(v) { try { v ? localStorage.setItem(this.tokenKey, v) : localStorage.removeItem(this.tokenKey); } catch {} },
 
   async req(method, path, body) {
+    if (DEMO) {
+      const r = await RyderEngine.handle(method, path, body, this.token);
+      if (r.status >= 400) { const e = new Error(r.data?.error || `HTTP ${r.status}`); e.status = r.status; throw e; }
+      return r.data;
+    }
     const res = await fetch(path, {
       method,
       headers: {
@@ -25,6 +35,12 @@ const API = {
   listeners: {},
   on(event, fn) { (this.listeners[event] ||= []).push(fn); },
   connect() {
+    if (DEMO) {
+      // engine pushes events directly; bridge them into the same listener map
+      ['positions', 'ride', 'zone', 'sos', 'ticket', 'driver_status'].forEach(ev =>
+        RyderEngine.on(ev, (data) => (this.listeners[ev] || []).forEach(fn => fn(data))));
+      return;
+    }
     if (this.es) this.es.close();
     if (!this.token) return;
     this.es = new EventSource(`/api/events?token=${encodeURIComponent(this.token)}`);

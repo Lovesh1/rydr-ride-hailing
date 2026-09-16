@@ -2,12 +2,19 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef } from 'react';
+import './engine'; // embedded engine (used only in hosted demo mode)
 
 /* Where the Ryder server lives.
-   - Expo web: talks to localhost directly.
+   - Expo web (local dev): talks to localhost directly.
+   - Hosted static build (GitHub Pages): no server → the embedded engine
+     (globalThis.RyderEngine) runs the entire platform in-browser.
    - Android emulator: 10.0.2.2 maps to the host machine.
    - Physical device: set your computer's LAN IP here (same wifi). */
 const HOST_LAN_IP = '192.168.1.100'; // ← change for a real phone
+export const DEMO_MODE =
+  Platform.OS === 'web' &&
+  typeof location !== 'undefined' &&
+  !/^(localhost|127\.|192\.168\.|10\.|0\.0\.0\.0)/.test(location.hostname);
 export const API_URL =
   Platform.OS === 'web' ? 'http://localhost:4321'
   : Platform.OS === 'android' ? 'http://10.0.2.2:4321'
@@ -25,6 +32,11 @@ export async function setToken(t) {
 export const getToken = () => _token;
 
 async function req(method, path, body) {
+  if (DEMO_MODE && globalThis.RyderEngine) {
+    const r = await globalThis.RyderEngine.handle(method, path, body, _token);
+    if (r.status >= 400) { const e = new Error(r.data?.error || `HTTP ${r.status}`); e.status = r.status; throw e; }
+    return r.data;
+  }
   const res = await fetch(API_URL + path, {
     method,
     headers: {

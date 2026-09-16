@@ -1,0 +1,23 @@
+# One-click real-backend deploy (free tier) — for true multi-user service
+# beyond the GitHub Pages in-browser demo.
+# Use: push this repo → render.com → New → Blueprint → pick the repo.
+# (Requires signing in to Render with your GitHub account.)
+services:
+  - type: web
+    name: ryder
+    runtime: node
+    plan: free
+    buildCommand: "echo zero dependencies — nothing to build"
+    startCommand: node server/index.js
+    healthCheckPath: /ready
+    envVars:
+      - key: RYDER_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: RYDER_EXPOSE_DEMO_OTP
+        value: "true"   # flip to "false" once Twilio keys are added
+    disk:
+      name: ryder-data
+      mountPath: /data
+      sizeGB: 1

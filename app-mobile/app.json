@@ -20,6 +20,9 @@
     "web": {
       "bundler": "metro"
     },
+    "experiments": {
+      "baseUrl": "/rydr-ride-hailing/app"
+    },
     "plugins": ["expo-font"]
   }
 }

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@1,500;1,600&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/base.css">
+<link rel="stylesheet" href="assets/base.css">
 <style>
 body{min-height:100vh}
 /* ---- login ---- */
@@ -134,7 +134,7 @@ tr:hover td{background:var(--bg2)}
 <!-- SHELL -->
 <div class="shell" id="shell">
   <aside>
-    <a class="logo" href="/"><span class="mark">R</span><span>Ryder<small>OPS CONSOLE</small></span></a>
+    <a class="logo" href="index.html"><span class="mark">R</span><span>Ryder<small>OPS CONSOLE</small></span></a>
     <div class="navs">
       <button class="nv on" data-v="overview" onclick="nav(this)">◳ &nbsp;Overview</button>
       <button class="nv" data-v="rides" onclick="nav(this)">⌖ &nbsp;Rides</button>
@@ -276,7 +276,8 @@ tr:hover td{background:var(--bg2)}
   </main>
 </div>
 
-<script src="/assets/api.js"></script>
+<script src="assets/engine.js"></script>
+<script src="assets/api.js"></script>
 <script>
 let ME=null, fleetProj=null;
 const EMO={bike:'🏍',auto:'🛺',mini:'🚗',prime:'🚘',suv:'🚙',ev:'⚡'};
