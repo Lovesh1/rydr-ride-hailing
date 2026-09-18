@@ -998,9 +998,84 @@
     return bad(`no route: ${method} ${p}`, 404);
   }
 
+  /* ---- demo seeding: 30 days of realistic history for sales demos ----
+     Trigger on any page with ?demo=rich, or call RyderEngine.seedDemo(). */
+  function seedDemo() {
+    if (S.rides.length >= 20) return 'already rich';
+    const pick = (a) => a[Math.floor(Math.random() * a.length)];
+    const HOURS = [8, 9, 9, 10, 13, 17, 18, 19, 19, 19, 20, 21, 22, 23];
+    const CATS = ['auto', 'auto', 'auto', 'mini', 'mini', 'bike', 'ev', 'prime'];
+    const bots = S.users.filter(u => u.driver?.is_bot);
+    const mkRider = (name, phone, prime) => {
+      const u = { id: uid('usr'), phone, name, role: 'rider', rating: 4.7, rating_count: 10,
+        wallet_balance: 0, rides_count: 0, status: 'active', referral_code: 'RYD' + phone.slice(-5),
+        prime_until: prime ? now() + 20 * 864e5 : 0, postpaid_limit: 0, ride_prefs: {}, created_at: now() - 40 * 864e5 };
+      S.users.push(u);
+      ledger(u.id, 'topup', 6000, 'added via UPI (demo)');
+      return u;
+    };
+    const mkRide = (rider, daysAgo, status, opts = {}) => {
+      const from = pick(PLACES.slice(0, 8)); let to = pick(PLACES.slice(0, 12));
+      if (to === from) to = PLACES[(PLACES.indexOf(from) + 3) % 12];
+      const cat = opts.cat || pick(CATS);
+      const { distKm, durMin } = routeMetrics([from, to]);
+      const f = cityFare(cat, distKm, durMin, { prime: !!opts.prime });
+      const promo = opts.promo ? Math.min(Math.round(f.total * 0.5), 75) : 0;
+      const fare = f.total - promo;
+      const t = new Date(now() - daysAgo * 864e5); t.setHours(pick(HOURS), Math.floor(Math.random() * 60), 0, 0);
+      const req = t.getTime(), comp = req + durMin * 60e3;
+      const drv = bots.find(b => b.driver.category === cat) || pick(bots);
+      const r = { id: uid('R'), rider_id: rider.id, driver_id: status === 'EXPIRED' ? null : drv.id,
+        category: cat, type: 'city', status,
+        pickup_lat: from.lat, pickup_lng: from.lng, pickup_addr: from.name,
+        drop_lat: to.lat, drop_lng: to.lng, drop_addr: to.name, stops: [], otp: '0000',
+        distance_km: distKm, duration_min: durMin, fare_quoted: fare,
+        fare_final: status === 'COMPLETED' ? fare : null, fare_breakdown: f.breakdown, surge: 1,
+        promo_code: promo ? 'FIRST50' : null, promo_discount: promo,
+        payment_method: Math.random() < 0.4 ? 'cash' : 'wallet',
+        requested_at: req, accepted_at: req + 2e4,
+        started_at: status === 'COMPLETED' ? req + 24e4 : null,
+        completed_at: status === 'COMPLETED' ? comp : null,
+        cancelled_at: status === 'CANCELLED' ? req + 9e4 : null, waiting_min: 0 };
+      S.rides.push(r);
+      if (status === 'COMPLETED') {
+        if (r.payment_method === 'wallet') ledger(rider.id, 'ride_charge', -fare, `${from.name} → ${to.name}`, r.id);
+        ledger(drv.id, 'ride_earning', Math.round(fare * 0.78), `trip ${r.id}`, r.id);
+        rider.rides_count++;
+        drv.driver.earnings_total += Math.round(fare * 0.78);
+      }
+    };
+    const aarav = mkRider('Aarav Mehta', '+919876540001', true);
+    const sana = mkRider('Sana Kapoor', '+919876540002');
+    const rohit = mkRider('Rohit Verma', '+919876540003');
+    const nisha = mkRider('Nisha Iyer', '+919876540004');
+    const kabir = mkRider('Kabir Shah', '+919876540005');
+    const meher = mkRider('Meher Gill', '+919876540006');
+    const vikram = mkRider('Vikram Rao', '+919876540007');
+    const tara = mkRider('Tara Menon', '+919876540008');
+    [0, 1, 1, 2, 3, 4, 6, 8, 11, 14].forEach(d => mkRide(aarav, d, 'COMPLETED', { prime: true }));
+    [0, 2, 3, 5, 7, 9, 12, 16].forEach(d => mkRide(sana, d, 'COMPLETED', { promo: d > 10 }));
+    [1, 4, 8, 13].forEach(d => mkRide(rohit, d, 'COMPLETED'));
+    [2, 6, 10].forEach(d => mkRide(nisha, d, 'COMPLETED'));
+    [9, 12, 15, 19].forEach(d => mkRide(kabir, d, 'COMPLETED'));
+    [11, 14, 18].forEach(d => mkRide(meher, d, 'COMPLETED'));
+    [35, 38].forEach(d => mkRide(vikram, d, 'COMPLETED'));
+    mkRide(tara, 1, 'COMPLETED', { promo: true });
+    [0, 1, 2, 3].forEach(d => mkRide(pick([sana, rohit, nisha]), d, 'EXPIRED'));
+    [1, 2, 4, 6, 9].forEach(d => mkRide(pick([aarav, rohit, kabir]), d, 'CANCELLED'));
+    ledger(aarav.id, 'ride_charge', -5, 'fare lock · Auto @ ₹96');
+    ledger(sana.id, 'ride_charge', -5, 'fare lock · Mini @ ₹152');
+    save();
+    return 'seeded 30 days of demo history';
+  }
+  try {
+    if (typeof location !== 'undefined' && /[?&]demo=rich/.test(location.search)) seedDemo();
+  } catch {}
+
   globalThis.RyderEngine = {
     handle,
     on(event, fn) { (listeners[event] ||= []).push(fn); },
+    seedDemo,
     reset() { try { localStorage.removeItem(KEY); } catch {} S = fresh(); save(); },
   };
 })();
