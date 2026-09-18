@@ -105,6 +105,23 @@ tr:hover td{background:var(--bg2)}
 .rv-track i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--emerald),#4CBA8B)}
 .rv-amt{font-family:var(--disp);font-weight:800;font-size:14px;width:86px;text-align:right;color:var(--emerald-deep)}
 
+/* intelligence */
+.op-card{border-radius:20px;padding:18px;background:var(--surface);border:1px solid var(--hair);box-shadow:var(--shadow-card);display:flex;flex-direction:column;gap:8px}
+.op-card .tag{font-size:9.5px;font-weight:800;letter-spacing:.16em;color:var(--emerald-deep);background:var(--emerald-dim);border-radius:99px;padding:4px 10px;align-self:flex-start}
+.op-card .impact{font-family:var(--disp);font-weight:800;font-size:26px;letter-spacing:-.02em;color:var(--emerald-deep)}
+.op-card .impact small{font-size:11px;color:var(--mut);font-weight:700}
+.op-card b{font-size:13.5px}
+.op-card p{font-size:12px;color:var(--mut);font-weight:600;line-height:1.55;flex:1}
+.op-card .act{font-size:11.5px;font-weight:800;color:var(--ink);background:var(--bg);border-radius:10px;padding:8px 11px}
+.seg-tile{border-radius:16px;padding:13px;text-align:center;border:1px solid var(--hair)}
+.seg-tile b{font-family:var(--disp);font-size:22px;font-weight:800;display:block}
+.seg-tile span{font-size:9.5px;font-weight:800;letter-spacing:.08em;color:var(--mut);text-transform:uppercase}
+.seg-tile i{font-style:normal;display:block;font-size:10.5px;font-weight:700;color:var(--mut);margin-top:2px}
+.simrow{display:flex;align-items:center;gap:14px;padding:9px 0}
+.simrow span{width:180px;font-size:12.5px;font-weight:700;color:var(--ink-dim)}
+.simrow input{flex:1;accent-color:var(--emerald)}
+.simrow b{width:64px;text-align:right;font-family:var(--disp);font-weight:800;font-size:14px}
+
 .viewx{display:none}
 .viewx.on{display:block}
 @media(max-width:1100px){.kpis{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}}
@@ -138,6 +155,7 @@ tr:hover td{background:var(--bg2)}
     <div class="navs">
       <button class="nv on" data-v="overview" onclick="nav(this)">◳ &nbsp;Overview</button>
       <button class="nv" data-v="analytics" onclick="nav(this)">📈 &nbsp;Analytics</button>
+      <button class="nv" data-v="intel" onclick="nav(this)">🧠 &nbsp;Intelligence</button>
       <button class="nv" data-v="rides" onclick="nav(this)">⌖ &nbsp;Rides</button>
       <button class="nv" data-v="drivers" onclick="nav(this)">◔ &nbsp;Drivers <span class="cnt" id="kycCnt" style="display:none">0</span></button>
       <button class="nv" data-v="riders" onclick="nav(this)">◌ &nbsp;Riders</button>
@@ -215,6 +233,66 @@ tr:hover td{background:var(--bg2)}
       <div class="panel card">
         <h3>Driver leaderboard <span class="micro">LIFETIME EARNINGS</span></h3>
         <div id="chLead"></div>
+      </div>
+    </div>
+
+    <!-- INTELLIGENCE -->
+    <div class="viewx" id="x-intel">
+      <!-- money on the table banner -->
+      <div class="panel" style="border-radius:24px;background:var(--ink);color:#fff;margin-bottom:16px;position:relative;overflow:hidden">
+        <div style="position:absolute;width:220px;height:220px;border-radius:50%;background:#4353FF33;top:-90px;right:-40px"></div>
+        <div style="position:absolute;width:140px;height:140px;border-radius:50%;background:#FF7A1A2E;bottom:-60px;left:30%"></div>
+        <div class="micro" style="color:#8FD3B2">MONEY ON THE TABLE · DETECTED BY THE ENGINE</div>
+        <div style="font-family:var(--disp);font-weight:800;font-size:44px;letter-spacing:-.03em;margin-top:6px">
+          <span id="inTotal">—</span><span style="font-size:15px;color:#9AA2B1;font-weight:700"> / month in untapped revenue</span>
+        </div>
+        <div style="font-size:12.5px;color:#9AA2B1;font-weight:600;margin-top:4px">computed live from your rides, riders, zones and wallet ledger — each item below tells you why, and what to do</div>
+      </div>
+
+      <div id="inOps" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px"></div>
+
+      <div class="kpis">
+        <div class="kpi card"><div class="lbl">Your take revenue</div><div class="val" id="inTake">—</div><div class="d">22% of <span id="inGmv">—</span> GMV</div></div>
+        <div class="kpi card"><div class="lbl">ARPU</div><div class="val" id="inArpu">—</div><div class="d" id="inRpr">—</div></div>
+        <div class="kpi card"><div class="lbl">Rider LTV</div><div class="val" id="inLtv">—</div><div class="d" id="inLtvNote">—</div></div>
+        <div class="kpi card"><div class="lbl">Prime MRR</div><div class="val" id="inMrr">—</div><div class="d" id="inMrrSub">—</div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel card">
+          <h3>Rider segments <span class="micro">RFM · WHO YOUR MONEY COMES FROM</span></h3>
+          <div id="inSeg" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px"></div>
+          <h3 style="margin-top:24px">At-risk riders <span class="micro">ONE CLICK TO WIN THEM BACK</span></h3>
+          <table><thead><tr><th>Rider</th><th>Rides</th><th>Spent</th><th>Quiet for</th><th></th></tr></thead>
+            <tbody id="inRisk"></tbody></table>
+        </div>
+        <div class="panel card">
+          <h3>Tomorrow's demand <span class="micro">HOUR-OF-DAY FORECAST</span></h3>
+          <div id="inForecast" style="height:190px"></div>
+          <p id="inPeak" style="font-size:12.5px;font-weight:700;color:var(--mut);margin-top:6px"></p>
+          <h3 style="margin-top:22px">Lost revenue ledger</h3>
+          <div id="inLost"></div>
+        </div>
+      </div>
+
+      <!-- profit simulator -->
+      <div class="panel card" style="border:1.5px solid var(--mint-deep)">
+        <h3>Owner profit simulator <span class="micro">DRAG THE SLIDERS · YOUR CITY, YOUR NUMBERS</span></h3>
+        <div style="display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center">
+          <div id="simCtl">
+            <div class="simrow"><span>Drivers on the road</span><input type="range" min="5" max="200" value="25" id="sDrv"><b id="vDrv">25</b></div>
+            <div class="simrow"><span>Rides per driver / day</span><input type="range" min="4" max="25" value="12" id="sRpd"><b id="vRpd">12</b></div>
+            <div class="simrow"><span>Average fare (₹)</span><input type="range" min="50" max="400" step="10" value="140" id="sFare"><b id="vFare">₹140</b></div>
+            <div class="simrow"><span>Platform commission (%)</span><input type="range" min="10" max="30" value="20" id="sTake"><b id="vTake">20%</b></div>
+            <div class="simrow"><span>Prime subscribers</span><input type="range" min="0" max="500" step="10" value="60" id="sPrime"><b id="vPrime">60</b></div>
+          </div>
+          <div style="text-align:center;background:var(--emerald-dim);border-radius:22px;padding:26px">
+            <div class="micro" style="color:var(--emerald-deep)">OWNER PROFIT / MONTH</div>
+            <div style="font-family:var(--disp);font-weight:800;font-size:46px;letter-spacing:-.03em;color:var(--emerald-deep)" id="simProfit">—</div>
+            <div style="font-size:12.5px;font-weight:700;color:var(--mut);margin-top:4px" id="simDetail">—</div>
+            <div style="margin-top:14px;background:var(--ink);color:#fff;border-radius:14px;padding:12px 16px;font-weight:800;font-size:14px" id="simPayback">—</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -344,9 +422,10 @@ async function boot(){
   $('#meName').textContent=ME.name;
   $('#meAv').textContent=ME.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   API.connect(); wire();
-  loadOverview(); loadRides(); loadDrivers(); loadRiders(); loadZones(); loadRevenue(); loadSos(); loadTickets(); loadPositions(); loadAnalytics();
+  loadOverview(); loadRides(); loadDrivers(); loadRiders(); loadZones(); loadRevenue(); loadSos(); loadTickets(); loadPositions(); loadAnalytics(); loadIntel(); simCalc();
   setInterval(loadOverview, 8000);
   setInterval(loadAnalytics, 15000);
+  setInterval(loadIntel, 20000);
 }
 
 function wire(){
@@ -362,6 +441,7 @@ function wire(){
 const TITLES={
   overview:['Mission <span class="serif">control.</span>','The whole network, breathing in real time.'],
   analytics:['The <span class="serif">pulse.</span>','Demand curves, funnels, green ledger and the leaderboard.'],
+  intel:['Profit <span class="serif">engine.</span>','Every insight priced in rupees. Every action one click away.'],
   rides:['Every <span class="serif">journey.</span>','City, rental, outstation & scheduled — live and historical.'],
   drivers:['The <span class="serif">fleet.</span>','KYC approvals, quality and partner management.'],
   riders:['The <span class="serif">riders.</span>','Accounts, wallets, Prime and standing.'],
@@ -514,6 +594,82 @@ async function loadAnalytics(){
       <span style="margin-left:auto;font-weight:800;color:var(--emerald-deep)">${inr(d.earnings_total)}</span>
     </div>`).join('');
 }
+
+/* ---------- intelligence ---------- */
+const SEG_META={champions:['🏆','Champions','#0E9F5D'],loyal:['💙','Loyal','#2563EB'],at_risk:['⚠️','At risk','#B97E08'],new_riders:['🌱','New','#7C3AED'],dormant:['😴','Dormant','#69737F']};
+async function loadIntel(){
+  const d=await API.get('/api/admin/intel').catch(()=>null); if(!d) return;
+  $('#inTotal').textContent=inr(d.total_opportunity_monthly);
+  $('#inOps').innerHTML=d.opportunities.slice(0,6).map(o=>`
+    <div class="op-card">
+      <span class="tag">${esc(o.tag)}</span>
+      <div class="impact">+${inr(o.impact_monthly)}<small> /mo</small></div>
+      <b>${esc(o.title)}</b>
+      <p>${esc(o.why)}</p>
+      <div class="act">→ ${esc(o.action)}</div>
+    </div>`).join('');
+  $('#inTake').textContent=inr(d.unit.take_revenue);
+  $('#inGmv').textContent=inr(d.unit.gmv);
+  $('#inArpu').textContent=inr(d.unit.arpu);
+  $('#inRpr').textContent=d.unit.rides_per_rider+' rides/rider · avg fare '+inr(d.unit.avg_fare);
+  $('#inLtv').textContent=inr(d.unit.ltv_per_rider);
+  $('#inLtvNote').textContent=d.unit.ltv_note;
+  $('#inMrr').textContent=inr(d.unit.prime_mrr);
+  $('#inMrrSub').textContent=d.unit.prime_members+' Prime member'+(d.unit.prime_members===1?'':'s')+' · promo spend '+inr(d.unit.promo_spend);
+  $('#inSeg').innerHTML=d.segments.map(s=>{
+    const [em,label,col]=SEG_META[s.key]||['·',s.key,'#69737F'];
+    return `<div class="seg-tile" style="border-color:${col}22;background:${col}0D">
+      <span style="color:${col}">${em} ${label}</span><b style="color:${col}">${s.count}</b><i>${inr(s.value)} spent</i></div>`;
+  }).join('');
+  $('#inRisk').innerHTML=d.at_risk.map(r=>`<tr>
+    <td style="font-weight:800">${esc(r.name)}</td><td>${r.rides}</td><td>${inr(r.spend)}</td>
+    <td><span class="pill amber">${r.recency_days}d quiet</span></td>
+    <td><button class="act ok" onclick="winback('${r.id}',this)">💌 Send ₹50</button></td></tr>`).join('')
+    ||'<tr><td colspan="5" style="color:var(--mut)">Nobody is fading. Your riders keep coming back.</td></tr>';
+  // forecast chart: expected requests by hour (dashed = forecast)
+  const W=460,H=170,P=24,fc=d.forecast;
+  const max=Math.max(...fc.map(f=>f.expected),1);
+  const x=i=>P+i*(W-2*P)/23, y=v=>H-P-(v/max)*(H-2*P-12);
+  $('#inForecast').innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:100%">
+    ${[0.5].map(f=>`<line x1="${P}" x2="${W-P}" y1="${y(max*f)}" y2="${y(max*f)}" stroke="#E4E8EF" stroke-dasharray="3 5"/>`).join('')}
+    <polyline points="${fc.map((f,i)=>`${x(i)},${y(f.expected)}`).join(' ')}" fill="none"
+      stroke="#4353FF" stroke-width="2.5" stroke-dasharray="6 5" stroke-linecap="round"/>
+    ${fc.map((f,i)=>f.expected>0?`<circle cx="${x(i)}" cy="${y(f.expected)}" r="3" fill="#4353FF"/>`:'').join('')}
+    <circle cx="${x(d.peak_hour.hour)}" cy="${y(d.peak_hour.expected)}" r="7" fill="none" stroke="#FF7A1A" stroke-width="2.5"/>
+    ${fc.map((f,i)=>i%4===0?`<text x="${x(i)}" y="${H-6}" font-size="9.5" font-weight="700" fill="#69737F" text-anchor="middle">${String(f.hour).padStart(2,'0')}h</text>`:'').join('')}
+  </svg>`;
+  $('#inPeak').textContent=`🔸 Peak expected around ${String(d.peak_hour.hour).padStart(2,'0')}:00 (${d.peak_hour.expected} requests/hr) — position drivers & pricing there.`;
+  $('#inLost').innerHTML=`
+    <div class="zrow"><b>Expired (no driver found)</b><span class="pill red">${d.lost.expired.n} · ${inr(d.lost.expired.v)}</span></div>
+    <div class="zrow"><b>Cancelled before pickup</b><span class="pill amber">${d.lost.cancelled.n} · ${inr(d.lost.cancelled.v)}</span></div>`;
+}
+async function winback(id,btn){
+  try{ const r=await API.post(`/api/admin/winback/${id}`);
+    btn.textContent='✓ sent'; btn.disabled=true;
+    toast(`₹50 win-back credit landed in ${r.rider}'s wallet`);
+  }catch(e){ toast(e.message,true); }
+}
+
+/* profit simulator — the buyer's own numbers, live */
+const PLATFORM_PRICE=200000;
+function simCalc(){
+  const drv=+$('#sDrv').value, rpd=+$('#sRpd').value, fare=+$('#sFare').value,
+        take=+$('#sTake').value/100, prime=+$('#sPrime').value;
+  $('#vDrv').textContent=drv; $('#vRpd').textContent=rpd;
+  $('#vFare').textContent='₹'+fare; $('#vTake').textContent=Math.round(take*100)+'%';
+  $('#vPrime').textContent=prime;
+  const gross=drv*rpd*fare*30;
+  const profit=Math.round(gross*take + prime*149);
+  $('#simProfit').textContent=inr(profit);
+  $('#simDetail').textContent=`${inr(gross)} monthly GMV × ${Math.round(take*100)}% + ${inr(prime*149)} Prime MRR`;
+  const days=profit>0?Math.ceil(PLATFORM_PRICE/(profit/30)):0;
+  $('#simPayback').textContent=profit>0
+    ? `Platform pays for itself in ${days} day${days===1?'':'s'} ⚡`
+    : 'Drag the sliders';
+}
+['sDrv','sRpd','sFare','sTake','sPrime'].forEach(id=>{
+  document.addEventListener('input',e=>{ if(e.target.id===id) simCalc(); });
+});
 
 /* ---------- rides ---------- */
 let rideSt='';

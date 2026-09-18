@@ -812,6 +812,109 @@
         if (z) { z.surge = Math.min(Math.max(Number(body.surge) || 1, 1), 3); save(); emit('zone', z); }
         return ok({ surge: z?.surge });
       }
+      /* Ryder Intelligence — the profit engine (mirror of server logic) */
+      if (p === '/api/admin/intel') {
+        const t = now(), TAKE = 0.22, PRIME_FEE = 149;
+        const done = S.rides.filter(r => r.status === 'COMPLETED');
+        const gmv = done.reduce((s, r) => s + (r.fare_final || 0), 0);
+        const riders = S.users.filter(u => u.role === 'rider' && u.status === 'active');
+        const stats = riders.map(u => {
+          const mine = done.filter(r => r.rider_id === u.id).sort((a, b) => a.completed_at - b.completed_at);
+          const spend = mine.reduce((s, r) => s + r.fare_final, 0);
+          const last = mine.length ? mine[mine.length - 1].completed_at : null;
+          return { id: u.id, name: u.name, prime: isPrime(u), rides: mine.length, spend: Math.round(spend),
+            avg_fare: mine.length ? Math.round(spend / mine.length) : 0,
+            last_ride_at: last, recency_days: last ? Math.floor((t - last) / 864e5) : null };
+        }).filter(s => s.rides > 0);
+
+        const segMap = { champions: [], loyal: [], at_risk: [], new_riders: [], dormant: [] };
+        for (const s of stats) {
+          if (s.recency_days > 30) segMap.dormant.push(s);
+          else if (s.recency_days > 7 && s.rides >= 2) segMap.at_risk.push(s);
+          else if (s.rides >= 4) segMap.champions.push(s);
+          else if (s.rides >= 2) segMap.loyal.push(s);
+          else segMap.new_riders.push(s);
+        }
+        const segments = Object.entries(segMap).map(([k, v]) => ({
+          key: k, count: v.length, value: v.reduce((a, s) => a + s.spend, 0),
+          members: v.slice(0, 8) }));
+
+        const nRiders = stats.length || 1;
+        const arpu = Math.round(gmv / nRiders);
+        const promoSpend = Math.round(done.reduce((s, r) => s + (r.promo_discount || 0), 0));
+        const primeMembers = stats.filter(s => s.prime).length;
+        const unit = {
+          gmv: Math.round(gmv), take_revenue: Math.round(gmv * TAKE), arpu,
+          rides_per_rider: +(done.length / nRiders).toFixed(1),
+          avg_fare: done.length ? Math.round(gmv / done.length) : 0,
+          promo_spend: promoSpend, cac_proxy: Math.round(promoSpend / nRiders),
+          ltv_per_rider: Math.round((arpu * TAKE) / 0.15), ltv_note: 'ARPU × 22% take ÷ 15% monthly churn',
+          prime_members: primeMembers, prime_mrr: primeMembers * PRIME_FEE,
+        };
+
+        const expired = S.rides.filter(r => r.status === 'EXPIRED');
+        const cancelled = S.rides.filter(r => r.status === 'CANCELLED');
+        const lost = {
+          expired: { n: expired.length, v: expired.reduce((s, r) => s + r.fare_quoted, 0) },
+          cancelled: { n: cancelled.length, v: cancelled.reduce((s, r) => s + r.fare_quoted, 0) },
+        };
+
+        const dayCount = Math.max(1, new Set(S.rides.map(r => new Date(r.requested_at).toDateString())).size);
+        const byHour = Array(24).fill(0);
+        for (const r of S.rides) byHour[new Date(r.requested_at).getHours()]++;
+        const forecast = byHour.map((n, hour) => ({ hour, expected: +(n / dayCount).toFixed(1) }));
+        const peakHour = forecast.reduce((a, b) => (b.expected > a.expected ? b : a), forecast[0]);
+
+        const ops = [];
+        const primeTargets = stats.filter(s => !s.prime && s.rides >= 3);
+        if (primeTargets.length) ops.push({ tag: 'SUBSCRIPTION',
+          title: `Convert ${primeTargets.length} frequent rider${primeTargets.length > 1 ? 's' : ''} to Prime`,
+          impact_monthly: Math.round(primeTargets.length * 0.5 * PRIME_FEE),
+          why: `${primeTargets.length} riders take 3+ rides but pay per trip. Converting half at ₹${PRIME_FEE}/mo is recurring revenue on top of fares.`,
+          action: 'Push a 7-day free Prime trial to this segment' });
+        const winback = stats.filter(s => s.recency_days >= 7 && s.rides >= 2);
+        if (winback.length) ops.push({ tag: 'RETENTION',
+          title: `Win back ${winback.length} fading rider${winback.length > 1 ? 's' : ''}`,
+          impact_monthly: Math.round(winback.reduce((a, s) => a + s.avg_fare * 4, 0) * TAKE),
+          why: 'They ride, then went quiet 7+ days. A ₹50 credit beats re-acquisition; recovered riders average 4 rides/mo.',
+          action: 'One-click ₹50 win-back credit (button below)' });
+        const quiet = S.zones.filter(z => z.surge === 1)
+          .map(z => ({ z, trips: done.filter(r => havKm(r.pickup_lat, r.pickup_lng, z.lat, z.lng) <= z.r).length }))
+          .filter(x => x.trips >= 2).sort((a, b) => b.trips - a.trips);
+        if (quiet.length) ops.push({ tag: 'PRICING',
+          title: `Peak-price ${quiet[0].z.name} at rush hour`,
+          impact_monthly: Math.round(quiet[0].trips * (unit.avg_fare || 100) * 4 * 0.2 * TAKE),
+          why: `${quiet[0].z.name} is your busiest flat-priced zone (${quiet[0].trips} trips). A modest 1.2× at peak lifts take without hurting demand.`,
+          action: `Set ${quiet[0].z.name} to 1.2× around ${String(peakHour.hour).padStart(2, '0')}:00` });
+        const cashN = done.filter(r => r.payment_method === 'cash').length;
+        if (done.length && cashN / done.length > 0.3) ops.push({ tag: 'PAYMENTS',
+          title: 'Move cash riders to wallet',
+          impact_monthly: Math.round(cashN / done.length * gmv * 0.05),
+          why: `${Math.round(cashN / done.length * 100)}% of trips settle in cash. Wallet riders settle instantly and ride ~20% more often.`,
+          action: '₹20 cashback on first wallet top-up' });
+        if (lost.expired.n) ops.push({ tag: 'SUPPLY', title: 'Stop losing expired requests',
+          impact_monthly: Math.round(lost.expired.v * 4 * TAKE),
+          why: `${lost.expired.n} request(s) died unmatched (₹${Math.round(lost.expired.v)}). Driver incentives at ${String(peakHour.hour).padStart(2, '0')}:00 plug the leak.`,
+          action: 'Daily target bonus for peak-hour drivers' });
+        const lockFees = S.ledger.filter(x => (x.note || '').startsWith('fare lock')).reduce((s, x) => s - x.amount, 0);
+        ops.push({ tag: 'MICRO-REVENUE', title: 'Fare Lock & tips are already earning',
+          impact_monthly: Math.round(Math.max(lockFees, 0) * 4),
+          why: `₹${Math.round(Math.max(lockFees, 0))} in lock fees so far — a revenue line competitors don't have.`,
+          action: 'Surface Fare Lock during rain & rush hours' });
+        ops.sort((a, b) => b.impact_monthly - a.impact_monthly);
+
+        return ok({
+          unit, segments, lost, forecast, peak_hour: peakHour, opportunities: ops,
+          total_opportunity_monthly: ops.reduce((s, o) => s + o.impact_monthly, 0),
+          at_risk: segMap.at_risk.concat(segMap.dormant).slice(0, 10),
+        });
+      }
+      if (seg[2] === 'winback' && seg.length === 4 && method === 'POST') {
+        const u = U(seg[3]);
+        if (!u || u.role !== 'rider') return bad('rider not found', 404);
+        ledger(u.id, 'promo_credit', 50, 'we miss you — ₹50 on us 💙');
+        return ok({ sent: true, rider: u.name, credit: 50 });
+      }
       if (p === '/api/admin/analytics') {
         const t = now();
         const done = S.rides.filter(r => r.status === 'COMPLETED');

@@ -153,7 +153,24 @@ try {
   assert(an.status === 200 && an.data.hourly.length === 24 && an.data.daily.length === 7
     && an.data.funnel.completed >= 1 && an.data.leaderboard.length > 0,
     `analytics: 24h pulse, 7d GMV, funnel ${an.data.funnel.requested}→${an.data.funnel.completed}, leaderboard ${an.data.leaderboard.length}`);
+
+  // intelligence engine: unit economics + priced opportunities + segments
+  const intel = await api('GET', '/api/admin/intel');
+  assert(intel.status === 200
+    && intel.data.unit.gmv > 0 && intel.data.unit.take_revenue > 0 && intel.data.unit.ltv_per_rider > 0
+    && intel.data.opportunities.length >= 1 && intel.data.opportunities.every(o => typeof o.impact_monthly === 'number' && o.why && o.action)
+    && intel.data.segments.length === 5 && intel.data.forecast.length === 24,
+    `intel: GMV ₹${intel.data.unit.gmv}, ${intel.data.opportunities.length} priced opportunities (top: ${intel.data.opportunities[0].tag} +₹${intel.data.opportunities[0].impact_monthly}/mo)`);
+
+  // one-click win-back credits the rider's wallet
+  const riderId = ver.data.user.id;
+  const wb = await api('POST', `/api/admin/winback/${riderId}`);
+  assert(wb.status === 200 && wb.data.credit === 50, 'win-back ₹50 credited');
+  const wb2 = await api('POST', `/api/admin/winback/${riderId}`);
+  assert(wb2.status === 400, 'duplicate win-back same day refused');
   TOKEN = rTok;
+  const wbBal = await api('GET', '/api/wallet');
+  assert(wbBal.data.transactions.some(x => x.type === 'promo_credit' && x.amount === 50), 'rider sees the ₹50 win-back');
 
   // ride preferences round-trip
   const setP = await api('POST', '/api/preferences', { quiet: true, prefer_woman_driver: true });
